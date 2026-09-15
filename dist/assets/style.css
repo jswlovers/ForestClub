@@ -21,7 +21,6 @@ button{cursor:pointer}
 .auth-form input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
 .auth-form input:focus{border-color:var(--gold)}
 .auth-form .primary{margin-top:18px}
-@media(max-width:1000px){.auth-wrap{display:none}}
 
 /* admin */
 .admin-table-wrap{max-height:320px;overflow-y:auto;margin-top:14px;border:1px solid var(--line);border-radius:14px}
@@ -153,6 +152,7 @@ dialog h2{margin:16px 0 6px;font-size:22px}
 }
 @media(max-width:640px){
   .topbar{height:66px;padding:0 18px}
+  #applyTop{display:none}
   .about,.section{padding-left:18px;padding-right:18px}
   .hero{min-height:auto;padding:54px 20px 60px}
   .hero-stats{gap:30px;flex-wrap:wrap}
