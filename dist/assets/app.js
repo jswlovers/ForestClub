@@ -28,10 +28,13 @@ applyForm.onsubmit=e=>{
   e.preventDefault();
   const name=document.querySelector('#applyName').value.trim();
   const phone=document.querySelector('#applyPhone').value.trim();
+  const email=document.querySelector('#applyEmail').value.trim();
+  const age=document.querySelector('#applyAge').value;
+  const region=document.querySelector('#applyRegion').value.trim();
   const interest=document.querySelector('#applyInterest').value;
-  if(!name||!phone){applyError.textContent='성함과 연락처를 입력해주세요';return}
+  if(!name||!phone||!email){applyError.textContent='성함, 연락처, 이메일을 입력해주세요';return}
   applyDialog.close();
-  document.querySelector('#doneText').textContent=`${name}님, ${interest} 분야 지원서가 접수되었습니다. 영업일 기준 3일 이내 연락드릴게요.`;
+  document.querySelector('#doneText').textContent=`${name}님, ${interest} 분야 지원서가 접수되었습니다. ${age}${region?' · '+region:''} 프로필로 심사를 시작하며, 영업일 기준 3일 이내 연락드릴게요.`;
   doneDialog.showModal();
 };
 

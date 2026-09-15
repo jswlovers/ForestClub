@@ -130,7 +130,8 @@ button{cursor:pointer}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 /* dialogs */
-dialog{border:0;border-radius:22px;padding:36px;width:min(440px,calc(100% - 30px));box-shadow:0 30px 90px rgba(0,0,0,.3);background:#fff}
+dialog{border:0;border-radius:22px;padding:36px;width:min(520px,calc(100% - 30px));max-height:88vh;overflow-y:auto;box-shadow:0 30px 90px rgba(0,0,0,.3);background:#fff}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 dialog::backdrop{background:rgba(19,37,32,.6);backdrop-filter:blur(4px)}
 .dialog-close{position:absolute;right:16px;top:13px;border:0;background:none;font-size:26px;color:#9a9a8f}
 .dialog-icon{display:grid;place-items:center;width:50px;height:50px;background:#f1ece0;color:var(--gold);border-radius:16px;font-size:22px}
@@ -158,4 +159,5 @@ dialog h2{margin:16px 0 6px;font-size:22px}
   .value-grid,.event-grid,.travel-grid,.voice-grid,.step-grid{grid-template-columns:1fr}
   .section.dark{padding-left:20px;padding-right:20px}
   .section-head{flex-direction:column;align-items:flex-start;gap:12px}
+  .field-row{grid-template-columns:1fr}
 }

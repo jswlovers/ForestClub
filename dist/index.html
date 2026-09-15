@@ -147,10 +147,38 @@
     <button class="dialog-close" aria-label="닫기">×</button>
     <span class="dialog-icon">◈</span>
     <h2>멤버십 지원서</h2>
-    <p class="dialog-sub">간단히 남겨주시면 영업일 기준 3일 이내 연락드립니다.</p>
+    <p class="dialog-sub">프로필을 자세히 남겨주실수록 심사에 도움이 됩니다. 영업일 기준 3일 이내 연락드립니다.</p>
     <form id="applyForm">
       <label>성함<input type="text" id="applyName" required placeholder="홍길동"></label>
-      <label>연락처<input type="tel" id="applyPhone" required placeholder="010-0000-0000"></label>
+      <div class="field-row">
+        <label>연락처<input type="tel" id="applyPhone" required placeholder="010-0000-0000"></label>
+        <label>이메일<input type="email" id="applyEmail" required placeholder="you@example.com"></label>
+      </div>
+      <div class="field-row">
+        <label>연령대
+          <select id="applyAge">
+            <option value="30대 후반">30대 후반</option>
+            <option value="40대 초반">40대 초반</option>
+            <option value="40대 후반">40대 후반</option>
+            <option value="50대 초반">50대 초반</option>
+            <option value="50대 중반">50대 중반</option>
+          </select>
+        </label>
+        <label>거주 지역<input type="text" id="applyRegion" placeholder="예: 서울 강남구"></label>
+      </div>
+      <div class="field-row">
+        <label>직업/업종<input type="text" id="applyJob" placeholder="예: 제조업 대표, 금융업 임원"></label>
+        <label>골프 구력
+          <select id="applyGolf">
+            <option value="골프는 하지 않음">골프는 하지 않음</option>
+            <option value="입문 (1년 미만)">입문 (1년 미만)</option>
+            <option value="1~3년">1~3년</option>
+            <option value="3~5년">3~5년</option>
+            <option value="5~10년">5~10년</option>
+            <option value="10년 이상">10년 이상</option>
+          </select>
+        </label>
+      </div>
       <label>관심 분야
         <select id="applyInterest">
           <option value="골프">골프 모임</option>
@@ -158,7 +186,8 @@
           <option value="둘 다">골프 · 여행 모두</option>
         </select>
       </label>
-      <label>간단한 소개<textarea id="applyIntro" placeholder="현재 하시는 일, 골프 경력 등을 간단히 적어주세요" rows="3"></textarea></label>
+      <label>추천인 (선택)<input type="text" id="applyReferrer" placeholder="추천해주신 회원 성함이 있다면 적어주세요"></label>
+      <label>간단한 소개<textarea id="applyIntro" placeholder="가입 계기, 이루신 성취 등을 자유롭게 적어주세요" rows="3"></textarea></label>
       <p class="auth-error" id="applyError"></p>
       <button class="primary full" type="submit">지원서 제출하기</button>
     </form>
