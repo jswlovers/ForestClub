@@ -38,8 +38,26 @@ document.querySelectorAll('.join').forEach(b=>b.addEventListener('click',async e
     showToast(`${name} 문의가 접수되었어요. 담당자가 곧 연락드립니다.`);
     e.target.textContent='문의 접수됨 ✓';
     e.target.disabled=true;
+    loadEventCapacity();
   }catch(err){showToast(err.message)}
 }));
+
+/* ── 모임 정원 표시 (실제 참가 문의 수 기반) ────────────── */
+async function loadEventCapacity(){
+  try{
+    const events=await api('/api/events');
+    events.forEach(ev=>{
+      const remainingText=ev.remaining>0?`${ev.remaining}자리 남음`:'마감';
+      document.querySelectorAll(`.event-tag[data-event="${CSS.escape(ev.name)}"]`).forEach(el=>{
+        el.textContent=`정원 ${ev.capacity}명 · ${remainingText}`;
+      });
+      document.querySelectorAll(`.travel-card small[data-event="${CSS.escape(ev.name)}"]`).forEach(el=>{
+        el.textContent=`${el.dataset.duration} · 정원 ${ev.capacity}명 · ${remainingText}`;
+      });
+    });
+  }catch{}
+}
+loadEventCapacity();
 
 document.querySelector('#moreGolf').onclick=()=>showToast('이번 시즌 골프 모임 일정 6건을 모두 불러왔어요');
 document.querySelector('#moreTravel').onclick=()=>showToast('이번 시즌 여행 프로그램 5건을 모두 불러왔어요');

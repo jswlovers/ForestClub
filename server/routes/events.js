@@ -8,9 +8,16 @@ const router = express.Router();
 const insertInterest = db.prepare(
   `INSERT INTO event_interests (user_id, event_name) VALUES (?, ?)`
 );
+const countInterests = db.prepare(
+  `SELECT COUNT(*) AS c FROM event_interests WHERE event_name = ?`
+);
 
 router.get('/', (req, res) => {
-  res.json(EVENTS);
+  const withCapacity = EVENTS.map((event) => {
+    const taken = countInterests.get(event.name).c;
+    return { ...event, remaining: Math.max(event.capacity - taken, 0) };
+  });
+  res.json(withCapacity);
 });
 
 router.post('/:eventName/interest', (req, res) => {

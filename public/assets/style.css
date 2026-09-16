@@ -144,16 +144,14 @@ dialog::backdrop{background:rgba(19,37,32,.6);backdrop-filter:blur(4px)}
 .dialog-icon{display:grid;place-items:center;width:50px;height:50px;background:#f1ece0;color:var(--gold);border-radius:16px;font-size:22px}
 dialog h2{margin:16px 0 6px;font-size:22px}
 .dialog-sub{color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 6px}
-.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
-#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
-#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus{border-color:var(--gold)}
+.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input,#companionForm select,#companionForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
+#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus,#companionForm select:focus,#companionForm textarea:focus{border-color:var(--gold)}
 .auth-error{color:#b23b3b;font-size:13px;min-height:18px;margin:10px 0 0}
 #applyForm .primary,#profileForm .primary,#passwordForm .ghost{margin-top:18px}
 .full{width:100%}
 
 /* companion / requests */
-#companionForm select{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
-#companionForm select:focus{border-color:var(--gold)}
 .member-hint{font-size:12.5px;color:var(--muted);margin:6px 0 0;line-height:1.6}
 .req-tabs{display:flex;gap:8px;margin:4px 0 18px}
 .req-tab{flex:1;border:1px solid var(--line);background:#f7f4ec;color:#6b7268;border-radius:11px;padding:10px;font-weight:700;font-size:13.5px}
