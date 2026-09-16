@@ -516,6 +516,8 @@ function renderAttachment(m){
   return '';
 }
 
+let lastThreadMessageId=-1;
+
 async function openChat(userId,name){
   currentChatPartnerId=userId;
   chatPartnerName.textContent=name;
@@ -523,13 +525,17 @@ async function openChat(userId,name){
   chatInput.value='';pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
   emojiPopover.classList.add('hidden');
   chatThread.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  lastThreadMessageId=-1;
   chatDialog.showModal();
   await loadChatThread();
 }
 
-async function loadChatThread(){
+async function loadChatThread(force){
   try{
     const {messages}=await api(`/api/messages/conversations/${currentChatPartnerId}`);
+    const newestId=messages.length?messages[messages.length-1].id:0;
+    if(!force && newestId===lastThreadMessageId) { refreshUnreadBadge(); return }
+    lastThreadMessageId=newestId;
     chatThread.innerHTML=messages.length?messages.map(m=>{
       const mine=m.sender_id!==currentChatPartnerId;
       return `<div class="chat-bubble ${mine?'mine':'theirs'}">
@@ -542,6 +548,11 @@ async function loadChatThread(){
     refreshUnreadBadge();
   }catch(err){chatThread.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
 }
+
+// 대화창을 열어둔 동안, 상대가 보낸 새 메시지가 직접 보내지 않아도 자동으로 보이도록 주기적으로 갱신.
+setInterval(()=>{
+  if(chatDialog.open && currentChatPartnerId) loadChatThread();
+},4000);
 
 document.querySelector('#chatBackBtn').onclick=()=>{chatDialog.close();openMessages()};
 
@@ -563,7 +574,7 @@ chatForm.onsubmit=async e=>{
     }
     chatInput.value='';pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
     refreshCoinBadge();
-    await loadChatThread();
+    await loadChatThread(true);
   }catch(err){chatError.textContent=err.message}
 };
 
@@ -587,7 +598,7 @@ chatFileInput.onchange=()=>{
       fd.append('callType',callType);
       const res=await api('/api/messages',{method:'POST',body:fd});
       refreshCoinBadge();
-      await loadChatThread();
+      await loadChatThread(true);
       if(res.attachmentUrl) window.open(res.attachmentUrl,'_blank','noopener');
     }catch(err){chatError.textContent=err.message}
   };
