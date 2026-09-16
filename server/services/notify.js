@@ -18,6 +18,9 @@ const TEMPLATE_ENV = {
   companion_request: 'KAKAO_TEMPLATE_COMPANION_REQUEST',
   companion_response: 'KAKAO_TEMPLATE_COMPANION_RESPONSE',
   password_reset: 'KAKAO_TEMPLATE_PASSWORD_RESET',
+  coin_charge_approved: 'KAKAO_TEMPLATE_COIN_CHARGE_APPROVED',
+  coin_charge_rejected: 'KAKAO_TEMPLATE_COIN_CHARGE_REJECTED',
+  new_message: 'KAKAO_TEMPLATE_NEW_MESSAGE',
 };
 
 /**

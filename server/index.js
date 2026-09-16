@@ -9,6 +9,8 @@ const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/applications');
 const eventRoutes = require('./routes/events');
 const companionRoutes = require('./routes/companions');
+const coinRoutes = require('./routes/coins');
+const messageRoutes = require('./routes/messages');
 const adminRoutes = require('./routes/admin');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@forestclub.kr';
@@ -42,6 +44,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/companions', companionRoutes);
+app.use('/api/coins', coinRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));

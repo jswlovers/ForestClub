@@ -40,6 +40,7 @@ button{cursor:pointer}
 .nav-desktop button{border:0;background:none;color:#3c4740;font-weight:600;font-size:14.5px;letter-spacing:.01em}
 .nav-desktop button:hover{color:var(--forest)}
 .header-actions{display:flex;align-items:center;gap:14px}
+.coin-badge{border:1px solid var(--gold);background:rgba(184,146,79,.12);color:var(--forest);border-radius:999px;padding:9px 16px;font-weight:700;font-size:13.5px}
 .primary{border:0;background:var(--forest);color:var(--gold-light);border-radius:10px;padding:14px 22px;font-weight:700;font-size:15px;box-shadow:0 10px 24px rgba(19,37,32,.22)}
 .primary.small{padding:11px 18px;font-size:13.5px}
 .primary:hover{background:var(--forest-deep)}
@@ -144,11 +145,11 @@ dialog::backdrop{background:rgba(19,37,32,.6);backdrop-filter:blur(4px)}
 .dialog-icon{display:grid;place-items:center;width:50px;height:50px;background:#f1ece0;color:var(--gold);border-radius:16px;font-size:22px}
 dialog h2{margin:16px 0 6px;font-size:22px}
 .dialog-sub{color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 6px}
-.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
-#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input,#companionForm select,#companionForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
-#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus,#companionForm select:focus,#companionForm textarea:focus{border-color:var(--gold)}
+.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label,#chargeForm label,#composeForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input,#companionForm select,#companionForm textarea,#chargeForm input,#composeForm select,#composeForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
+#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus,#companionForm select:focus,#companionForm textarea:focus,#chargeForm input:focus,#composeForm select:focus,#composeForm textarea:focus{border-color:var(--gold)}
 .auth-error{color:#b23b3b;font-size:13px;min-height:18px;margin:10px 0 0}
-#applyForm .primary,#profileForm .primary,#passwordForm .ghost{margin-top:18px}
+#applyForm .primary,#profileForm .primary,#passwordForm .ghost,#chargeForm .primary,#composeForm .primary{margin-top:18px}
 .full{width:100%}
 
 /* companion / requests */

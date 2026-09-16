@@ -19,7 +19,8 @@
       <button data-scroll="voice">멤버 후기</button>
     </nav>
     <div class="header-actions">
-      <div class="auth-wrap"><button class="ghost small" id="authBtn">로그인</button><div class="auth-menu" id="authMenu"><button id="profileBtn" class="hidden">내 프로필</button><button id="myApplicationsBtn" class="hidden">내 지원 현황</button><button id="requestsBtn" class="hidden">내 신청함</button><button id="adminBtn" class="hidden">관리자 페이지</button><button id="logoutBtn">로그아웃</button></div></div>
+      <button class="coin-badge hidden" id="coinBadge">0 코인</button>
+      <div class="auth-wrap"><button class="ghost small" id="authBtn">로그인</button><div class="auth-menu" id="authMenu"><button id="profileBtn" class="hidden">내 프로필</button><button id="myApplicationsBtn" class="hidden">내 지원 현황</button><button id="requestsBtn" class="hidden">내 신청함</button><button id="messagesBtn" class="hidden">쪽지함</button><button id="coinsBtn" class="hidden">코인 충전</button><button id="adminBtn" class="hidden">관리자 페이지</button><button id="logoutBtn">로그아웃</button></div></div>
       <button class="primary small" id="applyTop">지원하기</button>
       <button class="hamburger" id="hamburger" aria-label="메뉴"><span></span><span></span><span></span></button>
     </div>
@@ -34,6 +35,8 @@
     <button id="profileMobile" class="hidden">내 프로필</button>
     <button id="myApplicationsMobile" class="hidden">내 지원 현황</button>
     <button id="requestsMobile" class="hidden">내 신청함</button>
+    <button id="messagesMobile" class="hidden">쪽지함</button>
+    <button id="coinsMobile" class="hidden">코인 충전</button>
     <button id="adminMobile" class="hidden">관리자 페이지</button>
     <button id="logoutMobile" class="hidden">로그아웃</button>
     <button class="primary full" id="applyMobile">지원하기</button>
@@ -331,6 +334,48 @@
     </div>
     <div id="incomingList" class="request-list"></div>
     <div id="outgoingList" class="request-list hidden"></div>
+  </dialog>
+
+  <dialog id="coinsDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">◈</span>
+    <h2>코인 충전</h2>
+    <p class="dialog-sub">보유 코인: <strong id="coinsBalance">0</strong>코인 · 메시지 1건 발송 시 500코인이 사용돼요.</p>
+    <form id="chargeForm">
+      <label>충전할 금액 (원)<input type="number" id="chargeAmount" min="1000" step="1000" required placeholder="예: 10000"></label>
+      <p class="member-hint">1코인 = 1원, 최소 1,000원부터 충전할 수 있어요. 신청 후 무통장입금 확인이 되면 관리자가 코인을 넣어드려요.</p>
+      <p class="auth-error" id="chargeError"></p>
+      <button class="primary full" type="submit">충전 신청하기</button>
+    </form>
+    <hr class="profile-divider">
+    <h3 class="profile-subhead">충전 내역</h3>
+    <div id="chargeHistory" class="request-list"></div>
+  </dialog>
+
+  <dialog id="messagesDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">✉</span>
+    <h2>쪽지함</h2>
+    <div class="req-tabs">
+      <button type="button" class="req-tab active" data-msgtab="inbox">받은 쪽지</button>
+      <button type="button" class="req-tab" data-msgtab="sent">보낸 쪽지</button>
+    </div>
+    <button class="ghost full" id="composeBtn" type="button">새 쪽지 보내기 (500코인)</button>
+    <div id="inboxList" class="request-list"></div>
+    <div id="sentList" class="request-list hidden"></div>
+  </dialog>
+
+  <dialog id="composeDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">✉</span>
+    <h2>새 쪽지 보내기</h2>
+    <p class="dialog-sub">메시지 1건 발송 시 <strong>500코인</strong>이 차감됩니다. 현재 보유: <strong id="composeBalance">0</strong>코인</p>
+    <form id="composeForm">
+      <label>받을 회원<select id="composeTarget" required></select></label>
+      <label>메시지<textarea id="composeBody" rows="4" required placeholder="전하고 싶은 말을 적어주세요"></textarea></label>
+      <p class="auth-error" id="composeError"></p>
+      <button class="primary full" type="submit">500코인으로 보내기</button>
+    </form>
   </dialog>
 
   <script src="assets/app.js"></script>

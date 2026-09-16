@@ -104,6 +104,9 @@ const adminBtn=document.querySelector('#adminBtn'),adminMobile=document.querySel
 const requestsBtn=document.querySelector('#requestsBtn'),requestsMobile=document.querySelector('#requestsMobile');
 const profileBtn=document.querySelector('#profileBtn'),profileMobile=document.querySelector('#profileMobile');
 const myApplicationsBtn=document.querySelector('#myApplicationsBtn'),myApplicationsMobile=document.querySelector('#myApplicationsMobile');
+const messagesBtn=document.querySelector('#messagesBtn'),messagesMobile=document.querySelector('#messagesMobile');
+const coinsBtn=document.querySelector('#coinsBtn'),coinsMobile=document.querySelector('#coinsMobile');
+const coinBadge=document.querySelector('#coinBadge');
 const logoutBtn=document.querySelector('#logoutBtn'),logoutMobile=document.querySelector('#logoutMobile');
 
 let currentUser=null;
@@ -116,14 +119,16 @@ function renderAuth(){
     adminMobile.classList.toggle('hidden',currentUser.role!=='admin');
     authMobile.classList.add('hidden');
     logoutMobile.classList.remove('hidden');
+    refreshCoinBadge();
   }else{
     authBtn.textContent='로그인';authBtn.dataset.state='out';
     authMobile.classList.remove('hidden');authMobile.textContent='로그인';
     logoutMobile.classList.add('hidden');
     adminBtn.classList.add('hidden');
     adminMobile.classList.add('hidden');
+    coinBadge.classList.add('hidden');
   }
-  [requestsBtn,requestsMobile,profileBtn,profileMobile,myApplicationsBtn,myApplicationsMobile].forEach(el=>el.classList.toggle('hidden',!loggedIn));
+  [requestsBtn,requestsMobile,profileBtn,profileMobile,myApplicationsBtn,myApplicationsMobile,messagesBtn,messagesMobile,coinsBtn,coinsMobile].forEach(el=>el.classList.toggle('hidden',!loggedIn));
 }
 
 async function refreshSession(){
@@ -383,3 +388,121 @@ async function loadMyApplications(){
       </div>`).join(''):'<p class="request-empty">아직 제출한 지원서가 없어요</p>';
   }catch(err){myApplicationsList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
 }
+
+/* ── 코인 ──────────────────────────────────────────────── */
+const coinsDialog=document.querySelector('#coinsDialog'),chargeForm=document.querySelector('#chargeForm');
+const chargeError=document.querySelector('#chargeError'),chargeHistory=document.querySelector('#chargeHistory');
+const coinsBalanceEl=document.querySelector('#coinsBalance');
+
+async function refreshCoinBadge(){
+  try{
+    const {coins}=await api('/api/coins/balance');
+    coinBadge.textContent=`${coins.toLocaleString()} 코인`;
+    coinBadge.classList.remove('hidden');
+    return coins;
+  }catch{coinBadge.classList.add('hidden');return 0}
+}
+coinBadge.onclick=()=>openCoins();
+
+const CHARGE_STATUS_LABEL={pending:'대기중',approved:'승인됨',rejected:'반려됨'};
+
+function openCoins(){
+  mobileMenu.classList.remove('show');authMenu.classList.remove('show');
+  chargeError.textContent='';chargeForm.reset();
+  coinsDialog.showModal();
+  loadCoinInfo();
+}
+coinsBtn.onclick=openCoins;coinsMobile.onclick=openCoins;
+
+async function loadCoinInfo(){
+  const coins=await refreshCoinBadge();
+  coinsBalanceEl.textContent=coins.toLocaleString();
+  chargeHistory.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  try{
+    const list=await api('/api/coins/charge-requests/me');
+    chargeHistory.innerHTML=list.length?list.map(c=>`
+      <div class="request-card">
+        <h4>${c.amount_krw.toLocaleString()}원 충전 (${c.coins.toLocaleString()}코인)<span class="req-status ${c.status}">${CHARGE_STATUS_LABEL[c.status]}</span></h4>
+        ${c.admin_note?`<p>메모: ${esc(c.admin_note)}</p>`:''}
+        <div class="req-meta">${new Date(c.created_at).toLocaleString('ko-KR')}</div>
+      </div>`).join(''):'<p class="request-empty">아직 충전 내역이 없어요</p>';
+  }catch(err){chargeHistory.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+}
+
+chargeForm.onsubmit=async e=>{
+  e.preventDefault();
+  const amountKrw=Number(document.querySelector('#chargeAmount').value);
+  try{
+    await api('/api/coins/charge-requests',{method:'POST',body:{amountKrw}});
+    chargeForm.reset();
+    showToast('충전 신청을 접수했어요. 입금 확인 후 코인이 지급돼요');
+    loadCoinInfo();
+  }catch(err){chargeError.textContent=err.message}
+};
+
+/* ── 쪽지 ──────────────────────────────────────────────── */
+const messagesDialog=document.querySelector('#messagesDialog');
+const inboxList=document.querySelector('#inboxList'),sentList=document.querySelector('#sentList');
+const composeDialog=document.querySelector('#composeDialog'),composeForm=document.querySelector('#composeForm');
+const composeError=document.querySelector('#composeError'),composeTarget=document.querySelector('#composeTarget');
+const composeBalance=document.querySelector('#composeBalance');
+
+function openMessages(){
+  mobileMenu.classList.remove('show');authMenu.classList.remove('show');
+  messagesDialog.showModal();
+  loadMessages();
+}
+messagesBtn.onclick=openMessages;messagesMobile.onclick=openMessages;
+
+document.querySelectorAll('#messagesDialog .req-tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('#messagesDialog .req-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
+  const isInbox=t.dataset.msgtab==='inbox';
+  inboxList.classList.toggle('hidden',!isInbox);
+  sentList.classList.toggle('hidden',isInbox);
+});
+
+async function loadMessages(){
+  inboxList.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  sentList.innerHTML='';
+  try{
+    const [inbox,sent]=await Promise.all([api('/api/messages/inbox'),api('/api/messages/sent')]);
+    inboxList.innerHTML=inbox.length?inbox.map(m=>`
+      <div class="request-card">
+        <h4>${esc(m.sender_name)}님이 보낸 쪽지</h4>
+        <p>${esc(m.body)}</p>
+        <div class="req-meta">${new Date(m.created_at).toLocaleString('ko-KR')}</div>
+      </div>`).join(''):'<p class="request-empty">받은 쪽지가 없어요</p>';
+    sentList.innerHTML=sent.length?sent.map(m=>`
+      <div class="request-card">
+        <h4>${esc(m.recipient_name)}님에게 보낸 쪽지</h4>
+        <p>${esc(m.body)}</p>
+        <div class="req-meta">${new Date(m.created_at).toLocaleString('ko-KR')}</div>
+      </div>`).join(''):'<p class="request-empty">보낸 쪽지가 없어요</p>';
+  }catch(err){inboxList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+}
+
+document.querySelector('#composeBtn').onclick=async()=>{
+  composeError.textContent='';composeForm.reset();
+  composeTarget.innerHTML='<option>불러오는 중...</option>';
+  composeDialog.showModal();
+  try{
+    const [members,{coins}]=await Promise.all([api('/api/messages/members'),api('/api/coins/balance')]);
+    composeBalance.textContent=coins.toLocaleString();
+    composeTarget.innerHTML=members.length?members.map(m=>`<option value="${m.id}">${esc(m.name)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join(''):'<option value="">쪽지를 보낼 회원이 없어요</option>';
+  }catch(err){composeError.textContent=err.message}
+};
+
+composeForm.onsubmit=async e=>{
+  e.preventDefault();
+  const recipientUserId=Number(composeTarget.value);
+  const body=document.querySelector('#composeBody').value.trim();
+  if(!recipientUserId){composeError.textContent='받을 회원을 선택해주세요';return}
+  if(!body){composeError.textContent='메시지 내용을 입력해주세요';return}
+  try{
+    await api('/api/messages',{method:'POST',body:{recipientUserId,body}});
+    composeDialog.close();
+    showToast('쪽지를 보냈어요 (500코인 사용)');
+    refreshCoinBadge();
+    loadMessages();
+  }catch(err){composeError.textContent=err.message}
+};
