@@ -1,0 +1,28 @@
+.admin-main{max-width:1180px;margin:0 auto;padding:40px 24px 100px}
+.admin-login{display:flex;justify-content:center;padding:60px 20px}
+.admin-login-card{width:min(420px,100%);border:1px solid var(--line);border-radius:22px;padding:36px;background:#fff}
+.admin-app.hidden,.admin-login.hidden{display:none}
+.admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px}
+.admin-tab{border:1px solid var(--line);background:#fff;color:#6b7268;border-radius:11px;padding:11px 16px;font-weight:700;font-size:13.5px}
+.admin-tab.active{background:var(--forest);color:var(--gold-light);border-color:var(--forest)}
+.admin-panel.hidden{display:none}
+.panel-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.panel-head h2{margin:0;font-size:22px}
+.panel-count{color:var(--muted);font-size:13px}
+.admin-table-wrap{max-height:none;margin-top:16px}
+.admin-table{white-space:nowrap}
+.admin-table td{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:normal}
+.status-pill{display:inline-block;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px}
+.status-pill.pending{background:#f1ece0;color:#8a7a4a}
+.status-pill.approved,.status-pill.accepted,.status-pill.sent{background:#e2ede4;color:#2f6b45}
+.status-pill.rejected,.status-pill.declined,.status-pill.failed{background:#f3e2e2;color:#a13c3c}
+.status-pill.mock{background:#e6edf3;color:#3a5f80}
+.status-pill.cancelled{background:#ece9e3;color:#7a7669}
+.row-actions{display:flex;gap:6px}
+.row-actions button{border:0;border-radius:8px;padding:7px 11px;font-weight:700;font-size:12px}
+.row-actions .approve-btn{background:var(--forest);color:var(--gold-light)}
+.row-actions .reject-btn{background:#efe4e4;color:#a13c3c}
+@media(max-width:640px){
+  .admin-main{padding:24px 16px 80px}
+  .admin-table-wrap{overflow-x:auto}
+}

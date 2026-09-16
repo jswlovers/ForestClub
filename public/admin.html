@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>포레스트클럽 — 관리자</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b3328'/%3E%3Cpath d='M32 14c8 6 12 14 12 22 0 7-5 12-12 12s-12-5-12-12c0-8 4-16 12-22Z' fill='%23c9a960'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/admin.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">F</span><span>포레스트클럽 관리자</span></a>
+    <div class="header-actions">
+      <a class="text-btn" href="/">사이트로 이동</a>
+      <button class="ghost small hidden" id="adminLogoutBtn">로그아웃</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <section id="adminLoginPane" class="admin-login">
+      <div class="admin-login-card">
+        <span class="dialog-icon">◈</span>
+        <h2>관리자 로그인</h2>
+        <p class="dialog-sub">관리자 계정으로 로그인하면 회원·지원서·동행 신청·알림 발송 내역을 확인할 수 있어요.</p>
+        <form id="adminLoginForm" class="auth-form">
+          <label>이메일<input type="email" id="adminLoginEmail" required placeholder="admin@forestclub.kr"></label>
+          <label>비밀번호<input type="password" id="adminLoginPassword" required placeholder="비밀번호"></label>
+          <p class="auth-error" id="adminLoginError"></p>
+          <button class="primary full" type="submit">로그인</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="adminAppPane" class="admin-app hidden">
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="users">회원 관리</button>
+        <button class="admin-tab" data-tab="applications">지원서 심사</button>
+        <button class="admin-tab" data-tab="companions">동행 신청 현황</button>
+        <button class="admin-tab" data-tab="interests">참가 문의</button>
+        <button class="admin-tab" data-tab="notifications">알림 발송 로그</button>
+      </div>
+
+      <section class="admin-panel" id="panel-users">
+        <div class="panel-head"><h2>회원 관리</h2><span class="panel-count" id="usersCount"></span></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>역할</th><th>가입일</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-applications">
+        <div class="panel-head"><h2>지원서 심사</h2><span class="panel-count" id="applicationsCount"></span></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>연락처</th><th>이메일</th><th>연령대</th><th>지역</th><th>직업</th><th>골프구력</th><th>관심분야</th><th>추천인</th><th>소개</th><th>상태</th><th>메모/사유</th><th>접수일</th><th>처리</th></tr></thead><tbody id="applicationsBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-companions">
+        <div class="panel-head"><h2>동행 신청 현황</h2><span class="panel-count" id="companionsCount"></span></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>신청자</th><th>대상</th><th>모임</th><th>메시지</th><th>상태</th><th>신청일</th></tr></thead><tbody id="companionsBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-interests">
+        <div class="panel-head"><h2>참가/일정 문의</h2><span class="panel-count" id="interestsCount"></span></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>회원</th><th>모임</th><th>문의일</th></tr></thead><tbody id="interestsBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-notifications">
+        <div class="panel-head"><h2>알림 발송 로그</h2><span class="panel-count" id="notificationsCount"></span></div>
+        <p class="dialog-sub">키가 설정되지 않은 동안은 실제로 발송되지 않고 이 로그에만 기록돼요. .env에 SMS/카카오 알림톡 키를 채우면 '발송됨' 상태로 바뀝니다.</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>수신 회원</th><th>전화번호</th><th>채널</th><th>메시지</th><th>상태</th><th>발송일</th></tr></thead><tbody id="notificationsBody"></tbody></table></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="assets/admin.js"></script>
+</body></html>

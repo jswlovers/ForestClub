@@ -21,6 +21,9 @@ button{cursor:pointer}
 .auth-form input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
 .auth-form input:focus{border-color:var(--gold)}
 .auth-form .primary{margin-top:18px}
+.forgot-link{display:block;margin:14px auto 0;color:var(--muted);font-size:12.5px;text-decoration:underline}
+.profile-divider{border:0;border-top:1px solid var(--line);margin:28px 0 18px}
+.profile-subhead{font-size:16px;margin:0 0 4px;font-weight:600}
 
 /* admin */
 .admin-table-wrap{max-height:320px;overflow-y:auto;margin-top:14px;border:1px solid var(--line);border-radius:14px}
@@ -92,6 +95,11 @@ button{cursor:pointer}
 .mini-faces{color:var(--gold);letter-spacing:3px;font-size:12px}
 .join{border:0;background:var(--gold);color:#221a0c;padding:10px 15px;border-radius:10px;font-weight:700;font-size:13px}
 .join:hover{background:var(--gold-light)}
+.event-btns{display:flex;gap:8px;flex-wrap:wrap}
+.companion{border:1px solid var(--gold);background:none;color:var(--gold-light);padding:9px 14px;border-radius:10px;font-weight:700;font-size:13px}
+.companion:hover{background:rgba(184,146,79,.16)}
+.travel-card .companion{border-color:var(--forest);color:var(--forest);background:none}
+.travel-card .companion:hover{background:rgba(27,51,40,.08)}
 
 .travel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .travel-card{border-radius:20px;padding:28px;min-height:270px;display:flex;flex-direction:column;justify-content:space-between}
@@ -136,12 +144,35 @@ dialog::backdrop{background:rgba(19,37,32,.6);backdrop-filter:blur(4px)}
 .dialog-icon{display:grid;place-items:center;width:50px;height:50px;background:#f1ece0;color:var(--gold);border-radius:16px;font-size:22px}
 dialog h2{margin:16px 0 6px;font-size:22px}
 .dialog-sub{color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 6px}
-.auth-form label,#applyForm label,#doneDialog label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
-#applyForm input,#applyForm select,#applyForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
-#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus{border-color:var(--gold)}
+.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
+#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus{border-color:var(--gold)}
 .auth-error{color:#b23b3b;font-size:13px;min-height:18px;margin:10px 0 0}
-#applyForm .primary{margin-top:18px}
+#applyForm .primary,#profileForm .primary,#passwordForm .ghost{margin-top:18px}
 .full{width:100%}
+
+/* companion / requests */
+#companionForm select{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
+#companionForm select:focus{border-color:var(--gold)}
+.member-hint{font-size:12.5px;color:var(--muted);margin:6px 0 0;line-height:1.6}
+.req-tabs{display:flex;gap:8px;margin:4px 0 18px}
+.req-tab{flex:1;border:1px solid var(--line);background:#f7f4ec;color:#6b7268;border-radius:11px;padding:10px;font-weight:700;font-size:13.5px}
+.req-tab.active{background:var(--forest);color:var(--gold-light);border-color:var(--forest)}
+.request-list{display:flex;flex-direction:column;gap:12px;max-height:50vh;overflow-y:auto}
+.request-empty{color:var(--muted);font-size:13.5px;text-align:center;padding:24px 0}
+.request-card{border:1px solid var(--line);border-radius:14px;padding:16px}
+.request-card h4{margin:0 0 4px;font-size:14.5px}
+.request-card p{margin:0 0 4px;font-size:13px;color:var(--muted);line-height:1.6}
+.request-card .req-meta{font-size:12px;color:#9a9a8f;margin-bottom:10px}
+.req-status{display:inline-block;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;margin-left:6px}
+.req-status.pending{background:#f1ece0;color:#8a7a4a}
+.req-status.accepted,.req-status.approved{background:#e2ede4;color:#2f6b45}
+.req-status.declined,.req-status.rejected{background:#f3e2e2;color:#a13c3c}
+.req-status.cancelled{background:#ece9e3;color:#7a7669}
+.request-card .req-actions{display:flex;gap:8px;margin-top:8px}
+.request-card .req-actions button{border:0;border-radius:9px;padding:9px 14px;font-weight:700;font-size:12.5px}
+.request-card .accept-btn{background:var(--forest);color:var(--gold-light)}
+.request-card .decline-btn{background:#efe4e4;color:#a13c3c}
 
 @media(max-width:1000px){
   .nav-desktop{display:none}

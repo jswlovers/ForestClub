@@ -19,7 +19,7 @@
       <button data-scroll="voice">멤버 후기</button>
     </nav>
     <div class="header-actions">
-      <div class="auth-wrap"><button class="ghost small" id="authBtn">로그인</button><div class="auth-menu" id="authMenu"><button id="adminBtn" class="hidden">회원 관리</button><button id="logoutBtn">로그아웃</button></div></div>
+      <div class="auth-wrap"><button class="ghost small" id="authBtn">로그인</button><div class="auth-menu" id="authMenu"><button id="profileBtn" class="hidden">내 프로필</button><button id="myApplicationsBtn" class="hidden">내 지원 현황</button><button id="requestsBtn" class="hidden">내 신청함</button><button id="adminBtn" class="hidden">관리자 페이지</button><button id="logoutBtn">로그아웃</button></div></div>
       <button class="primary small" id="applyTop">지원하기</button>
       <button class="hamburger" id="hamburger" aria-label="메뉴"><span></span><span></span><span></span></button>
     </div>
@@ -31,7 +31,10 @@
     <button data-scroll="membership">멤버십</button>
     <button data-scroll="voice">멤버 후기</button>
     <button id="authMobile">로그인</button>
-    <button id="adminMobile" class="hidden">회원 관리</button>
+    <button id="profileMobile" class="hidden">내 프로필</button>
+    <button id="myApplicationsMobile" class="hidden">내 지원 현황</button>
+    <button id="requestsMobile" class="hidden">내 신청함</button>
+    <button id="adminMobile" class="hidden">관리자 페이지</button>
     <button id="logoutMobile" class="hidden">로그아웃</button>
     <button class="primary full" id="applyMobile">지원하기</button>
   </div>
@@ -79,19 +82,19 @@
           <span class="event-tag">정원 8명 · 3자리 남음</span>
           <h3>제주 프리미엄 투어 라운딩</h3>
           <p>2박 3일 · 제주 남부 명문 코스</p>
-          <div class="event-bottom"><span class="mini-faces">●●●</span><button class="join" data-name="제주 프리미엄 투어 라운딩">참가 문의</button></div>
+          <div class="event-bottom"><span class="mini-faces">●●●</span><span class="event-btns"><button class="join" data-name="제주 프리미엄 투어 라운딩">참가 문의</button><button class="companion" data-name="제주 프리미엄 투어 라운딩">동행 신청</button></span></div>
         </article>
         <article class="event-card">
           <span class="event-tag">정원 12명 · 5자리 남음</span>
           <h3>남부권 정기 라운딩</h3>
           <p>격주 토요일 · 순환 개최</p>
-          <div class="event-bottom"><span class="mini-faces">●●●</span><button class="join" data-name="남부권 정기 라운딩">참가 문의</button></div>
+          <div class="event-bottom"><span class="mini-faces">●●●</span><span class="event-btns"><button class="join" data-name="남부권 정기 라운딩">참가 문의</button><button class="companion" data-name="남부권 정기 라운딩">동행 신청</button></span></div>
         </article>
         <article class="event-card">
           <span class="event-tag">정원 6명 · 신규 회원 전용</span>
           <h3>웰컴 라운딩</h3>
           <p>가입 후 첫 한 달 이내 진행</p>
-          <div class="event-bottom"><span class="mini-faces">●●●</span><button class="join" data-name="웰컴 라운딩">참가 문의</button></div>
+          <div class="event-bottom"><span class="mini-faces">●●●</span><span class="event-btns"><button class="join" data-name="웰컴 라운딩">참가 문의</button><button class="companion" data-name="웰컴 라운딩">동행 신청</button></span></div>
         </article>
       </div>
     </section>
@@ -102,9 +105,9 @@
         <button class="text-btn" id="moreTravel">전체 일정 보기 →</button>
       </div>
       <div class="travel-grid">
-        <article class="travel-card peach"><small>7박 9일 · 정원 10명</small><h3>스코틀랜드<br>골프 오리진 투어</h3><p>세인트 앤드루스 등 발상지 코스 라운딩</p><button class="join" data-name="스코틀랜드 골프 오리진 투어">일정 문의</button></article>
-        <article class="travel-card sage"><small>5박 7일 · 정원 12명</small><h3>발리<br>웰니스 & 골프 리트릿</h3><p>라운딩과 휴양을 함께하는 균형 잡힌 일정</p><button class="join" data-name="발리 웰니스 & 골프 리트릿">일정 문의</button></article>
-        <article class="travel-card sand"><small>6박 8일 · 정원 10명</small><h3>나파밸리<br>와인 & 골프 투어</h3><p>미식과 와이너리, 그리고 라운딩</p><button class="join" data-name="나파밸리 와인 & 골프 투어">일정 문의</button></article>
+        <article class="travel-card peach"><small>7박 9일 · 정원 10명</small><h3>스코틀랜드<br>골프 오리진 투어</h3><p>세인트 앤드루스 등 발상지 코스 라운딩</p><span class="event-btns"><button class="join" data-name="스코틀랜드 골프 오리진 투어">일정 문의</button><button class="companion" data-name="스코틀랜드 골프 오리진 투어">동행 신청</button></span></article>
+        <article class="travel-card sage"><small>5박 7일 · 정원 12명</small><h3>발리<br>웰니스 & 골프 리트릿</h3><p>라운딩과 휴양을 함께하는 균형 잡힌 일정</p><span class="event-btns"><button class="join" data-name="발리 웰니스 & 골프 리트릿">일정 문의</button><button class="companion" data-name="발리 웰니스 & 골프 리트릿">동행 신청</button></span></article>
+        <article class="travel-card sand"><small>6박 8일 · 정원 10명</small><h3>나파밸리<br>와인 & 골프 투어</h3><p>미식과 와이너리, 그리고 라운딩</p><span class="event-btns"><button class="join" data-name="나파밸리 와인 & 골프 투어">일정 문의</button><button class="companion" data-name="나파밸리 와인 & 골프 투어">동행 신청</button></span></article>
       </div>
     </section>
 
@@ -211,21 +214,123 @@
       <label>비밀번호<input type="password" id="loginPassword" required placeholder="비밀번호"></label>
       <p class="auth-error" id="loginError"></p>
       <button class="primary full" type="submit">로그인</button>
+      <button type="button" class="text-btn forgot-link" id="forgotPasswordLink">비밀번호를 잊으셨나요?</button>
     </form>
     <form id="signupForm" class="auth-form hidden">
       <label>이름<input type="text" id="signupName" required placeholder="홍길동"></label>
       <label>이메일<input type="email" id="signupEmail" required placeholder="you@example.com"></label>
+      <label>연락처 (가입/동행 신청 알림 문자를 받으실 번호)<input type="tel" id="signupPhone" placeholder="010-0000-0000"></label>
       <label>비밀번호<input type="password" id="signupPassword" required placeholder="8자 이상" minlength="8"></label>
       <p class="auth-error" id="signupError"></p>
       <button class="primary full" type="submit">회원가입</button>
     </form>
   </dialog>
 
-  <dialog id="adminDialog">
+  <dialog id="resetDialog">
     <button class="dialog-close" aria-label="닫기">×</button>
-    <h2>회원 관리</h2>
-    <p class="dialog-sub" id="adminCount"></p>
-    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>이메일</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
+    <span class="dialog-icon">◈</span>
+    <h2>비밀번호 재설정</h2>
+    <p class="dialog-sub">가입 시 등록한 연락처로 인증코드를 보내드려요.</p>
+    <form id="resetRequestForm" class="auth-form">
+      <label>이메일<input type="email" id="resetEmail" required placeholder="you@example.com"></label>
+      <p class="auth-error" id="resetRequestError"></p>
+      <button class="primary full" type="submit">인증코드 받기</button>
+    </form>
+    <form id="resetConfirmForm" class="auth-form hidden">
+      <label>인증코드<input type="text" id="resetCode" required placeholder="6자리 숫자" inputmode="numeric" maxlength="6"></label>
+      <label>새 비밀번호<input type="password" id="resetNewPassword" required placeholder="8자 이상" minlength="8"></label>
+      <p class="auth-error" id="resetConfirmError"></p>
+      <button class="primary full" type="submit">비밀번호 재설정</button>
+    </form>
+  </dialog>
+
+  <dialog id="companionDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">⛳</span>
+    <h2>동행 신청</h2>
+    <p class="dialog-sub" id="companionEventLabel"></p>
+    <form id="companionForm">
+      <label>신청할 회원<select id="companionTarget" required></select></label>
+      <p class="member-hint" id="companionTargetHint"></p>
+      <label>전하고 싶은 메시지 (선택)<textarea id="companionMessage" rows="3" placeholder="함께하고 싶은 이유나 인사말을 남겨주세요"></textarea></label>
+      <p class="auth-error" id="companionError"></p>
+      <button class="primary full" type="submit">동행 신청 보내기</button>
+    </form>
+  </dialog>
+
+  <dialog id="profileDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">◈</span>
+    <h2>내 프로필</h2>
+    <p class="dialog-sub">여기서 입력한 정보는 동행 신청 시 다른 회원에게 보여져요.</p>
+    <form id="profileForm">
+      <label>연락처<input type="tel" id="profilePhone" placeholder="010-0000-0000"></label>
+      <div class="field-row">
+        <label>연령대
+          <select id="profileAge">
+            <option value="">선택 안 함</option>
+            <option value="30대 후반">30대 후반</option>
+            <option value="40대 초반">40대 초반</option>
+            <option value="40대 후반">40대 후반</option>
+            <option value="50대 초반">50대 초반</option>
+            <option value="50대 중반">50대 중반</option>
+          </select>
+        </label>
+        <label>거주 지역<input type="text" id="profileRegion" placeholder="예: 서울 강남구"></label>
+      </div>
+      <div class="field-row">
+        <label>직업/업종<input type="text" id="profileJob" placeholder="예: 제조업 대표"></label>
+        <label>골프 구력
+          <select id="profileGolf">
+            <option value="">선택 안 함</option>
+            <option value="골프는 하지 않음">골프는 하지 않음</option>
+            <option value="입문 (1년 미만)">입문 (1년 미만)</option>
+            <option value="1~3년">1~3년</option>
+            <option value="3~5년">3~5년</option>
+            <option value="5~10년">5~10년</option>
+            <option value="10년 이상">10년 이상</option>
+          </select>
+        </label>
+      </div>
+      <label>관심 분야
+        <select id="profileInterest">
+          <option value="">선택 안 함</option>
+          <option value="골프">골프 모임</option>
+          <option value="여행">여행 모임</option>
+          <option value="둘 다">골프 · 여행 모두</option>
+        </select>
+      </label>
+      <label>간단한 소개<textarea id="profileIntro" rows="3" placeholder="다른 회원에게 보여질 소개글을 적어주세요"></textarea></label>
+      <p class="auth-error" id="profileError"></p>
+      <button class="primary full" type="submit">저장하기</button>
+    </form>
+    <hr class="profile-divider">
+    <h3 class="profile-subhead">비밀번호 변경</h3>
+    <form id="passwordForm">
+      <label>현재 비밀번호<input type="password" id="currentPassword" required placeholder="현재 비밀번호"></label>
+      <label>새 비밀번호<input type="password" id="newPassword" required placeholder="8자 이상" minlength="8"></label>
+      <p class="auth-error" id="passwordError"></p>
+      <button class="ghost full" type="submit">비밀번호 변경</button>
+    </form>
+  </dialog>
+
+  <dialog id="myApplicationsDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">◈</span>
+    <h2>내 지원 현황</h2>
+    <div id="myApplicationsList" class="request-list"></div>
+  </dialog>
+
+  <dialog id="requestsDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">📨</span>
+    <h2>내 동행 신청함</h2>
+    <div class="req-tabs">
+      <button type="button" class="req-tab active" data-reqtab="incoming">받은 신청</button>
+      <button type="button" class="req-tab" data-reqtab="outgoing">보낸 신청</button>
+    </div>
+    <div id="incomingList" class="request-list"></div>
+    <div id="outgoingList" class="request-list hidden"></div>
   </dialog>
 
   <script src="assets/app.js"></script>
