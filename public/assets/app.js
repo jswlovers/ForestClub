@@ -4,10 +4,11 @@ hamburger.onclick=()=>mobileMenu.classList.toggle('show');
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 async function api(path,options={}){
+  const isFormData=options.body instanceof FormData;
   const res=await fetch(path,{
     method:options.method||'GET',
-    headers:options.body?{'Content-Type':'application/json'}:undefined,
-    body:options.body?JSON.stringify(options.body):undefined,
+    headers:options.body&&!isFormData?{'Content-Type':'application/json'}:undefined,
+    body:options.body?(isFormData?options.body:JSON.stringify(options.body)):undefined,
     credentials:'include',
   });
   let data=null;
@@ -120,6 +121,7 @@ function renderAuth(){
     authMobile.classList.add('hidden');
     logoutMobile.classList.remove('hidden');
     refreshCoinBadge();
+    establishMessageBaseline();
   }else{
     authBtn.textContent='로그인';authBtn.dataset.state='out';
     authMobile.classList.remove('hidden');authMobile.textContent='로그인';
@@ -127,6 +129,8 @@ function renderAuth(){
     adminBtn.classList.add('hidden');
     adminMobile.classList.add('hidden');
     coinBadge.classList.add('hidden');
+    setUnreadBadge(0);
+    messageBaselineReady=false;
   }
   [requestsBtn,requestsMobile,profileBtn,profileMobile,myApplicationsBtn,myApplicationsMobile,messagesBtn,messagesMobile,coinsBtn,coinsMobile].forEach(el=>el.classList.toggle('hidden',!loggedIn));
 }
@@ -440,69 +444,227 @@ chargeForm.onsubmit=async e=>{
   }catch(err){chargeError.textContent=err.message}
 };
 
-/* ── 쪽지 ──────────────────────────────────────────────── */
+/* ── 쪽지 (채팅) ───────────────────────────────────────── */
 const messagesDialog=document.querySelector('#messagesDialog');
-const inboxList=document.querySelector('#inboxList'),sentList=document.querySelector('#sentList');
-const composeDialog=document.querySelector('#composeDialog'),composeForm=document.querySelector('#composeForm');
-const composeError=document.querySelector('#composeError'),composeTarget=document.querySelector('#composeTarget');
-const composeBalance=document.querySelector('#composeBalance');
+const conversationList=document.querySelector('#conversationList');
+const newChatDialog=document.querySelector('#newChatDialog'),newChatMembers=document.querySelector('#newChatMembers');
+const chatDialog=document.querySelector('#chatDialog'),chatThread=document.querySelector('#chatThread');
+const chatForm=document.querySelector('#chatForm'),chatInput=document.querySelector('#chatInput'),chatError=document.querySelector('#chatError');
+const chatPartnerName=document.querySelector('#chatPartnerName');
+const chatFileInput=document.querySelector('#chatFileInput'),chatAttachHint=document.querySelector('#chatAttachHint');
+const emojiBtn=document.querySelector('#emojiBtn'),emojiPopover=document.querySelector('#emojiPopover');
+
+let currentChatPartnerId=null;
+let pendingAttachment=null;
 
 function openMessages(){
   mobileMenu.classList.remove('show');authMenu.classList.remove('show');
   messagesDialog.showModal();
-  loadMessages();
+  loadConversations();
 }
 messagesBtn.onclick=openMessages;messagesMobile.onclick=openMessages;
 
-document.querySelectorAll('#messagesDialog .req-tab').forEach(t=>t.onclick=()=>{
-  document.querySelectorAll('#messagesDialog .req-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
-  const isInbox=t.dataset.msgtab==='inbox';
-  inboxList.classList.toggle('hidden',!isInbox);
-  sentList.classList.toggle('hidden',isInbox);
-});
+function fmtChatDate(dt){return new Date(dt.replace(' ','T')+'Z').toLocaleString('ko-KR')}
+function fmtConvDate(dt){return dt?new Date(dt.replace(' ','T')+'Z').toLocaleDateString('ko-KR'):''}
 
-async function loadMessages(){
-  inboxList.innerHTML='<p class="request-empty">불러오는 중...</p>';
-  sentList.innerHTML='';
+async function loadConversations(){
+  conversationList.innerHTML='<p class="request-empty">불러오는 중...</p>';
   try{
-    const [inbox,sent]=await Promise.all([api('/api/messages/inbox'),api('/api/messages/sent')]);
-    inboxList.innerHTML=inbox.length?inbox.map(m=>`
-      <div class="request-card">
-        <h4>${esc(m.sender_name)}님이 보낸 쪽지</h4>
-        <p>${esc(m.body)}</p>
-        <div class="req-meta">${new Date(m.created_at).toLocaleString('ko-KR')}</div>
-      </div>`).join(''):'<p class="request-empty">받은 쪽지가 없어요</p>';
-    sentList.innerHTML=sent.length?sent.map(m=>`
-      <div class="request-card">
-        <h4>${esc(m.recipient_name)}님에게 보낸 쪽지</h4>
-        <p>${esc(m.body)}</p>
-        <div class="req-meta">${new Date(m.created_at).toLocaleString('ko-KR')}</div>
-      </div>`).join(''):'<p class="request-empty">보낸 쪽지가 없어요</p>';
-  }catch(err){inboxList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+    const list=await api('/api/messages/conversations');
+    conversationList.innerHTML=list.length?list.map(c=>`
+      <button type="button" class="conversation-card" data-user-id="${c.userId}">
+        <div class="conv-main">
+          <h4>${esc(c.name)}</h4>
+          <p>${c.lastMine?'나: ':''}${esc(c.lastPreview)}</p>
+        </div>
+        <span class="conv-time">${fmtConvDate(c.lastAt)}</span>
+        ${c.unread?`<span class="unread-count">${c.unread>99?'99+':c.unread}</span>`:''}
+      </button>`).join(''):'<p class="request-empty">아직 대화가 없어요. "새 대화 시작"을 눌러보세요</p>';
+  }catch(err){conversationList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
 }
 
-document.querySelector('#composeBtn').onclick=async()=>{
-  composeError.textContent='';composeForm.reset();
-  composeTarget.innerHTML='<option>불러오는 중...</option>';
-  composeDialog.showModal();
+conversationList.addEventListener('click',e=>{
+  const card=e.target.closest('.conversation-card');
+  if(!card) return;
+  openChat(Number(card.dataset.userId),card.querySelector('h4').textContent);
+});
+
+document.querySelector('#newChatBtn').onclick=async()=>{
+  messagesDialog.close();
+  newChatMembers.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  newChatDialog.showModal();
   try{
-    const [members,{coins}]=await Promise.all([api('/api/messages/members'),api('/api/coins/balance')]);
-    composeBalance.textContent=coins.toLocaleString();
-    composeTarget.innerHTML=members.length?members.map(m=>`<option value="${m.id}">${esc(m.name)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join(''):'<option value="">쪽지를 보낼 회원이 없어요</option>';
-  }catch(err){composeError.textContent=err.message}
+    const members=await api('/api/messages/members');
+    newChatMembers.innerHTML=members.length?members.map(m=>`
+      <button type="button" class="conversation-card" data-user-id="${m.id}" data-name="${esc(m.name)}">
+        <div class="conv-main"><h4>${esc(m.name)}</h4><p>${esc([m.age_group,m.region,m.interest].filter(Boolean).join(' · ')||'프로필 미등록')}</p></div>
+      </button>`).join(''):'<p class="request-empty">대화할 수 있는 회원이 없어요</p>';
+  }catch(err){newChatMembers.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
 };
 
-composeForm.onsubmit=async e=>{
-  e.preventDefault();
-  const recipientUserId=Number(composeTarget.value);
-  const body=document.querySelector('#composeBody').value.trim();
-  if(!recipientUserId){composeError.textContent='받을 회원을 선택해주세요';return}
-  if(!body){composeError.textContent='메시지 내용을 입력해주세요';return}
+newChatMembers.addEventListener('click',e=>{
+  const card=e.target.closest('.conversation-card');
+  if(!card) return;
+  newChatDialog.close();
+  openChat(Number(card.dataset.userId),card.dataset.name);
+});
+
+function renderAttachment(m){
+  if(m.attachment_type==='image') return `<a href="${m.attachment_url}" target="_blank" rel="noopener"><img src="${m.attachment_url}" alt="사진"></a>`;
+  if(m.attachment_type==='file') return `<a class="chat-file-link" href="${m.attachment_url}" target="_blank" rel="noopener">📎 ${esc(m.attachment_name||'파일')}</a>`;
+  if(m.attachment_type==='call') return `<a class="chat-call-link" href="${m.attachment_url}" target="_blank" rel="noopener">${m.attachment_name==='video'?'🎥':'🎙'} 통화 참여하기</a>`;
+  return '';
+}
+
+async function openChat(userId,name){
+  currentChatPartnerId=userId;
+  chatPartnerName.textContent=name;
+  chatError.textContent='';
+  chatInput.value='';pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
+  emojiPopover.classList.add('hidden');
+  chatThread.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  chatDialog.showModal();
+  await loadChatThread();
+}
+
+async function loadChatThread(){
   try{
-    await api('/api/messages',{method:'POST',body:{recipientUserId,body}});
-    composeDialog.close();
-    showToast('쪽지를 보냈어요 (500코인 사용)');
+    const {messages}=await api(`/api/messages/conversations/${currentChatPartnerId}`);
+    chatThread.innerHTML=messages.length?messages.map(m=>{
+      const mine=m.sender_id!==currentChatPartnerId;
+      return `<div class="chat-bubble ${mine?'mine':'theirs'}">
+        ${m.body?esc(m.body):''}
+        ${renderAttachment(m)}
+        <span class="chat-time">${fmtChatDate(m.created_at)}</span>
+      </div>`;
+    }).join(''):'<p class="request-empty">아직 대화가 없어요. 첫 메시지를 보내보세요</p>';
+    chatThread.scrollTop=chatThread.scrollHeight;
+    refreshUnreadBadge();
+  }catch(err){chatThread.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+}
+
+document.querySelector('#chatBackBtn').onclick=()=>{chatDialog.close();openMessages()};
+
+chatForm.onsubmit=async e=>{
+  e.preventDefault();
+  const body=chatInput.value.trim();
+  if(!body&&!pendingAttachment){chatError.textContent='메시지를 입력하거나 파일을 첨부해주세요';return}
+  chatError.textContent='';
+  try{
+    let res;
+    if(pendingAttachment){
+      const fd=new FormData();
+      fd.append('recipientUserId',currentChatPartnerId);
+      fd.append('body',body);
+      fd.append('file',pendingAttachment);
+      res=await api('/api/messages',{method:'POST',body:fd});
+    }else{
+      res=await api('/api/messages',{method:'POST',body:{recipientUserId:currentChatPartnerId,body}});
+    }
+    chatInput.value='';pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
     refreshCoinBadge();
-    loadMessages();
-  }catch(err){composeError.textContent=err.message}
+    await loadChatThread();
+  }catch(err){chatError.textContent=err.message}
 };
+
+document.querySelector('#attachBtn').onclick=()=>chatFileInput.click();
+chatFileInput.onchange=()=>{
+  const file=chatFileInput.files[0];
+  if(!file) return;
+  if(file.size>15*1024*1024){chatError.textContent='파일은 15MB 이하만 첨부할 수 있어요';chatFileInput.value='';return}
+  pendingAttachment=file;
+  chatAttachHint.textContent=`첨부됨: ${file.name}`;
+};
+
+['voiceCallBtn','videoCallBtn'].forEach(id=>{
+  document.querySelector(`#${id}`).onclick=async()=>{
+    const callType=id==='voiceCallBtn'?'voice':'video';
+    chatError.textContent='';
+    try{
+      const fd=new FormData();
+      fd.append('recipientUserId',currentChatPartnerId);
+      fd.append('kind','call');
+      fd.append('callType',callType);
+      const res=await api('/api/messages',{method:'POST',body:fd});
+      refreshCoinBadge();
+      await loadChatThread();
+      if(res.attachmentUrl) window.open(res.attachmentUrl,'_blank','noopener');
+    }catch(err){chatError.textContent=err.message}
+  };
+});
+
+/* 이모티콘 (감정 표현 위주) */
+const EMOJI_LIST=['😀','😂','🥰','😍','😘','😊','🙂','😉','😎','🤔','😐','😑','😒','🙄','😢','😭','😡','😱','😴','🥳','👍','👎','❤️','💔','🙏','👏','🎉','💪','😅','🤗'];
+emojiPopover.innerHTML=EMOJI_LIST.map(em=>`<button type="button">${em}</button>`).join('');
+emojiBtn.onclick=()=>emojiPopover.classList.toggle('hidden');
+emojiPopover.addEventListener('click',e=>{
+  const btn=e.target.closest('button');
+  if(!btn) return;
+  chatInput.value+=btn.textContent;
+  chatInput.focus();
+});
+document.addEventListener('click',e=>{
+  if(!emojiPopover.classList.contains('hidden')&&!emojiPopover.contains(e.target)&&e.target!==emojiBtn){
+    emojiPopover.classList.add('hidden');
+  }
+});
+
+/* ── 새 쪽지 알림 (폴링 + 소리 + 읽지 않은 개수) ──────────── */
+let lastUnreadCount=0;
+let messageBaselineReady=false;
+
+function setUnreadBadge(count){
+  authBtn.dataset.unread=String(count);
+  const label=count>0?`쪽지함 (${count})`:'쪽지함';
+  messagesBtn.textContent=label;
+  messagesMobile.textContent=label;
+}
+
+async function refreshUnreadBadge(){
+  try{
+    const {count}=await api('/api/messages/unread-count');
+    lastUnreadCount=count;
+    setUnreadBadge(count);
+  }catch{}
+}
+
+async function establishMessageBaseline(){
+  messageBaselineReady=false;
+  await refreshUnreadBadge();
+  messageBaselineReady=true;
+}
+
+function playAlertSound(){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx=new AudioCtx();
+    const chime=(freq,start,dur)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='sine';o.frequency.value=freq;
+      g.gain.value=0.0001;
+      o.connect(g);g.connect(ctx.destination);
+      const t=ctx.currentTime+start;
+      g.gain.exponentialRampToValueAtTime(0.16,t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.start(t);o.stop(t+dur+0.02);
+    };
+    chime(880,0,0.32);
+    chime(1175,0.16,0.35);
+    setTimeout(()=>ctx.close().catch(()=>{}),800);
+  }catch{}
+}
+
+async function pollNewMessages(){
+  if(!currentUser||!messageBaselineReady) return;
+  try{
+    const {count}=await api('/api/messages/unread-count');
+    if(count>lastUnreadCount){
+      playAlertSound();
+      showToast('✉ 새 쪽지가 도착했어요');
+    }
+    lastUnreadCount=count;
+    setUnreadBadge(count);
+  }catch{}
+}
+setInterval(pollNewMessages,15000);

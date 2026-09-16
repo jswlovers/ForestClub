@@ -122,15 +122,36 @@ db.exec(`
     processed_at TEXT
   );
 
+  -- attachment_type: NULL(텍스트만) | 'image' | 'file' | 'call'
+  -- attachment_url: 이미지/파일은 '/api/messages/attachments/<파일명>', 통화는 Daily.co 방 URL
   CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sender_id INTEGER NOT NULL REFERENCES users(id),
     recipient_id INTEGER NOT NULL REFERENCES users(id),
     body TEXT NOT NULL,
+    attachment_type TEXT,
+    attachment_url TEXT,
+    attachment_name TEXT,
+    read_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id, created_at);
 `);
+
+// CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
+// 이미 만들어진 로컬 DB에도 이후 추가된 컬럼이 반영되도록 가벼운 마이그레이션을 돌린다.
+function ensureColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+ensureColumn('messages', 'attachment_type', 'TEXT');
+ensureColumn('messages', 'attachment_url', 'TEXT');
+ensureColumn('messages', 'attachment_name', 'TEXT');
+ensureColumn('messages', 'read_at', 'TEXT');
+
+db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(recipient_id, read_at);`);
 
 module.exports = db;

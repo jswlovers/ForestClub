@@ -9,6 +9,13 @@ button{cursor:pointer}
 
 /* auth */
 .auth-wrap{position:relative}
+#authBtn{position:relative}
+#authBtn[data-unread]:not([data-unread="0"])::after{
+  content:attr(data-unread);position:absolute;top:-7px;right:-7px;
+  min-width:18px;height:18px;padding:0 4px;border-radius:999px;
+  background:#c0392b;color:#fff;font-size:10px;font-weight:700;
+  line-height:18px;text-align:center;border:2px solid var(--cream)
+}
 .ghost.small{padding:11px 18px;font-size:13.5px}
 .auth-menu{position:absolute;right:0;top:52px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 34px rgba(19,37,32,.16);padding:6px;display:none;min-width:130px;z-index:35}
 .auth-menu.show{display:block}
@@ -172,6 +179,39 @@ dialog h2{margin:16px 0 6px;font-size:22px}
 .request-card .req-actions button{border:0;border-radius:9px;padding:9px 14px;font-weight:700;font-size:12.5px}
 .request-card .accept-btn{background:var(--forest);color:var(--gold-light)}
 .request-card .decline-btn{background:#efe4e4;color:#a13c3c}
+
+/* conversation list */
+.conversation-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;text-align:left;width:100%;background:#fff}
+.conversation-card:hover{border-color:var(--gold)}
+.conversation-card .conv-main{flex:1;min-width:0}
+.conversation-card h4{margin:0 0 3px;font-size:14.5px}
+.conversation-card p{margin:0;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conversation-card .conv-time{font-size:11px;color:#9a9a8f;flex-shrink:0}
+.unread-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#c0392b;color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+
+/* chat dialog */
+.chat-dialog{width:min(560px,calc(100% - 30px));display:flex;flex-direction:column;padding:24px}
+.chat-header{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.chat-header h2{margin:0;font-size:17px;flex:1}
+.chat-call-btns{display:flex;gap:6px}
+.chat-icon-btn{border:1px solid var(--line);background:#fff;border-radius:11px;width:38px;height:38px;font-size:16px;flex-shrink:0}
+.chat-icon-btn:hover{background:#f1ece0}
+.chat-thread{flex:1;max-height:48vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px 2px}
+.chat-bubble{max-width:78%;padding:9px 13px;border-radius:16px;font-size:13.5px;line-height:1.55;word-break:break-word}
+.chat-bubble.mine{align-self:flex-end;background:var(--forest);color:var(--gold-light);border-bottom-right-radius:4px}
+.chat-bubble.theirs{align-self:flex-start;background:#f1ece0;color:var(--ink);border-bottom-left-radius:4px}
+.chat-bubble .chat-time{display:block;font-size:10px;opacity:.6;margin-top:4px}
+.chat-bubble img{display:block;max-width:100%;border-radius:10px;margin-top:2px}
+.chat-bubble .chat-file-link{display:flex;align-items:center;gap:6px;color:inherit;text-decoration:underline;font-size:13px}
+.chat-bubble .chat-call-link{display:inline-block;margin-top:6px;padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.18);color:inherit;text-decoration:none;font-weight:700;font-size:12.5px}
+.chat-bubble.theirs .chat-call-link{background:var(--forest);color:var(--gold-light)}
+.chat-input-row{display:flex;gap:6px;align-items:flex-end;position:relative;margin-top:8px}
+.chat-input-row textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:14px;max-height:90px;outline:none}
+.chat-input-row textarea:focus{border-color:var(--gold)}
+.chat-input-row .primary{padding:0 18px;height:42px;flex-shrink:0}
+.emoji-popover{position:absolute;bottom:48px;left:0;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 34px rgba(19,37,32,.16);padding:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:260px;z-index:40}
+.emoji-popover button{border:0;background:none;font-size:19px;padding:6px;border-radius:8px;line-height:1}
+.emoji-popover button:hover{background:#f1ece0}
 
 @media(max-width:1000px){
   .nav-desktop{display:none}

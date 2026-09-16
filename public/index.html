@@ -356,26 +356,39 @@
     <button class="dialog-close" aria-label="닫기">×</button>
     <span class="dialog-icon">✉</span>
     <h2>쪽지함</h2>
-    <div class="req-tabs">
-      <button type="button" class="req-tab active" data-msgtab="inbox">받은 쪽지</button>
-      <button type="button" class="req-tab" data-msgtab="sent">보낸 쪽지</button>
-    </div>
-    <button class="ghost full" id="composeBtn" type="button">새 쪽지 보내기 (500코인)</button>
-    <div id="inboxList" class="request-list"></div>
-    <div id="sentList" class="request-list hidden"></div>
+    <button class="ghost full" id="newChatBtn" type="button">새 대화 시작</button>
+    <div id="conversationList" class="request-list"></div>
   </dialog>
 
-  <dialog id="composeDialog">
+  <dialog id="newChatDialog">
     <button class="dialog-close" aria-label="닫기">×</button>
     <span class="dialog-icon">✉</span>
-    <h2>새 쪽지 보내기</h2>
-    <p class="dialog-sub">메시지 1건 발송 시 <strong>500코인</strong>이 차감됩니다. 현재 보유: <strong id="composeBalance">0</strong>코인</p>
-    <form id="composeForm">
-      <label>받을 회원<select id="composeTarget" required></select></label>
-      <label>메시지<textarea id="composeBody" rows="4" required placeholder="전하고 싶은 말을 적어주세요"></textarea></label>
-      <p class="auth-error" id="composeError"></p>
-      <button class="primary full" type="submit">500코인으로 보내기</button>
+    <h2>새 대화 시작</h2>
+    <p class="dialog-sub">대화할 회원을 선택해주세요.</p>
+    <div id="newChatMembers" class="request-list"></div>
+  </dialog>
+
+  <dialog id="chatDialog" class="chat-dialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <div class="chat-header">
+      <button type="button" class="text-btn" id="chatBackBtn">← 목록</button>
+      <h2 id="chatPartnerName"></h2>
+      <div class="chat-call-btns">
+        <button type="button" class="chat-icon-btn" id="voiceCallBtn" title="보이스톡">🎙</button>
+        <button type="button" class="chat-icon-btn" id="videoCallBtn" title="페이스톡">🎥</button>
+      </div>
+    </div>
+    <div id="chatThread" class="chat-thread"></div>
+    <p class="auth-error" id="chatError"></p>
+    <form id="chatForm" class="chat-input-row">
+      <button type="button" class="chat-icon-btn" id="emojiBtn" title="이모티콘">😊</button>
+      <button type="button" class="chat-icon-btn" id="attachBtn" title="사진/파일 첨부">📎</button>
+      <input type="file" id="chatFileInput" class="hidden" accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip">
+      <textarea id="chatInput" rows="1" placeholder="메시지 입력 (500코인)"></textarea>
+      <button class="primary" type="submit">전송</button>
+      <div id="emojiPopover" class="emoji-popover hidden"></div>
     </form>
+    <p class="member-hint" id="chatAttachHint"></p>
   </dialog>
 
   <script src="assets/app.js"></script>
