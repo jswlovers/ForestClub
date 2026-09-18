@@ -9,6 +9,7 @@ const { debitCoins, getBalance, InsufficientCoinsError } = require('../services/
 const { notifyBySms } = require('../services/notify');
 const { rateLimit } = require('../rate-limit');
 const { createCallRoom } = require('../services/videocall');
+const { ENTRY_MIN_COINS } = require('../call-pricing');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -40,7 +41,7 @@ const upload = multer({
 });
 
 const listMembers = db.prepare(`
-  SELECT id, name, age_group, region, interest, intro
+  SELECT id, name, age_group, region, interest, intro, photo_url
   FROM users WHERE role != 'admin' AND id != ?
   ORDER BY created_at DESC
 `);
@@ -112,6 +113,7 @@ router.get('/conversations', (req, res) => {
     return {
       userId: otherId,
       name: other ? other.name : '(탈퇴한 회원)',
+      photoUrl: other ? other.photo_url : null,
       lastPreview: previewFor(last),
       lastAt: last ? last.created_at : null,
       lastMine: last ? last.sender_id === req.user.id : false,
@@ -129,7 +131,7 @@ router.get('/conversations/:userId', (req, res) => {
 
   markReadStmt.run(req.user.id, otherId);
   const thread = threadQuery.all(req.user.id, otherId, otherId, req.user.id);
-  res.json({ partner: { id: other.id, name: other.name }, messages: thread });
+  res.json({ partner: { id: other.id, name: other.name, photoUrl: other.photo_url }, messages: thread });
 });
 
 router.post('/', sendLimiter, (req, res, next) => {
@@ -158,6 +160,9 @@ router.post('/', sendLimiter, (req, res, next) => {
   let attachmentName = null;
 
   if (kind === 'call') {
+    if (getBalance(req.user.id) <= ENTRY_MIN_COINS) {
+      return res.status(402).json({ error: `코인이 ${ENTRY_MIN_COINS.toLocaleString()}개 이하면 통화를 시작할 수 없어요. 충전 후 다시 시도해주세요`, coins: getBalance(req.user.id) });
+    }
     const callType = req.body.callType === 'video' ? 'video' : 'voice';
     const result = await createCallRoom(callType);
     if (!result.configured) {
@@ -176,7 +181,10 @@ router.post('/', sendLimiter, (req, res, next) => {
 
   db.exec('BEGIN');
   try {
-    debitCoins(req.user.id, MESSAGE_COST, 'message_spend', `메시지 발송 (받는 회원: ${recipient.name})`);
+    // 통화 요청은 초당 과금(콜 접속 후 /api/calls/tick)으로 별도 청구되므로 메시지 발송료는 받지 않는다.
+    if (kind !== 'call') {
+      debitCoins(req.user.id, MESSAGE_COST, 'message_spend', `메시지 발송 (받는 회원: ${recipient.name})`);
+    }
 
     if (req.file) {
       const ext = path.extname(req.file.originalname).slice(0, 10).replace(/[^a-zA-Z0-9.]/g, '');

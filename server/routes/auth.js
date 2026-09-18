@@ -1,5 +1,8 @@
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const express = require('express');
+const multer = require('multer');
 const db = require('../db');
 const { hashPassword, verifyPassword, createSession, destroySession, currentUser, requireAuth } = require('../auth');
 const { notifyBySms } = require('../services/notify');
@@ -17,6 +20,19 @@ const updateProfile = db.prepare(`
   WHERE id = ?
 `);
 const updatePasswordHash = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+const updatePhoto = db.prepare('UPDATE users SET photo_url = ? WHERE id = ?');
+
+const PHOTO_DIR = path.join(__dirname, '..', '..', 'data', 'uploads', 'profiles');
+fs.mkdirSync(PHOTO_DIR, { recursive: true });
+const PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const uploadPhoto = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (PHOTO_MIME.has(file.mimetype)) cb(null, true);
+    else cb(new Error('사진 파일(jpg/png/gif/webp)만 올릴 수 있어요'));
+  },
+});
 
 const insertReset = db.prepare(
   `INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?, ?, ?)`
@@ -77,6 +93,9 @@ router.post('/login', loginLimiter, (req, res) => {
   if (!user || !verifyPassword(password, user.password_hash)) {
     return res.status(401).json({ error: '이메일 또는 비밀번호가 올바르지 않아요' });
   }
+  if (user.suspended_at) {
+    return res.status(403).json({ error: `이용이 정지된 계정이에요.${user.suspended_reason ? ` (사유: ${user.suspended_reason})` : ''} 고객센터로 문의해주세요` });
+  }
   createSession(res, user.id);
   res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
 });
@@ -109,6 +128,29 @@ router.patch('/profile', requireAuth, (req, res) => {
     req.user.id
   );
   res.json(currentUser(req));
+});
+
+// 프로필 사진. 동행 신청 후보 목록 등 다른 회원에게도 노출되므로 소유자 확인 없이
+// 로그인한 회원이면 누구나 조회할 수 있게 한다(쪽지 첨부파일과 달리 비공개가 아님).
+router.post('/photo', requireAuth, (req, res, next) => {
+  uploadPhoto.single('photo')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || '사진을 업로드하지 못했어요' });
+    next();
+  });
+}, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '사진 파일을 선택해주세요' });
+  const ext = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' }[req.file.mimetype];
+  const filename = `${req.user.id}-${crypto.randomUUID()}${ext}`;
+  fs.writeFileSync(path.join(PHOTO_DIR, filename), req.file.buffer);
+  const photoUrl = `/api/auth/photo/${filename}`;
+  updatePhoto.run(photoUrl, req.user.id);
+  res.json({ photoUrl });
+});
+
+router.get('/photo/:filename', requireAuth, (req, res) => {
+  const filePath = path.join(PHOTO_DIR, path.basename(req.params.filename));
+  if (!fs.existsSync(filePath)) return res.status(404).end();
+  res.sendFile(filePath);
 });
 
 router.post('/password', requireAuth, (req, res) => {

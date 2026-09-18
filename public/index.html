@@ -20,7 +20,7 @@
     </nav>
     <div class="header-actions">
       <button class="coin-badge hidden" id="coinBadge">0 코인</button>
-      <div class="auth-wrap"><button class="ghost small" id="authBtn">로그인</button><div class="auth-menu" id="authMenu"><button id="profileBtn" class="hidden">내 프로필</button><button id="myApplicationsBtn" class="hidden">내 지원 현황</button><button id="requestsBtn" class="hidden">내 신청함</button><button id="messagesBtn" class="hidden">쪽지함</button><button id="coinsBtn" class="hidden">코인 충전</button><button id="adminBtn" class="hidden">관리자 페이지</button><button id="logoutBtn">로그아웃</button></div></div>
+      <div class="auth-wrap"><button class="ghost small" id="authBtn">로그인</button><div class="auth-menu" id="authMenu"><button id="profileBtn" class="hidden">내 프로필</button><button id="myApplicationsBtn" class="hidden">내 지원 현황</button><button id="requestsBtn" class="hidden">내 신청함</button><button id="messagesBtn" class="hidden">쪽지함</button><button id="coinsBtn" class="hidden">코인 충전</button><button id="supportBtn" class="hidden">고객센터</button><button id="adminBtn" class="hidden">관리자 페이지</button><button id="logoutBtn">로그아웃</button></div></div>
       <button class="primary small" id="applyTop">지원하기</button>
       <button class="hamburger" id="hamburger" aria-label="메뉴"><span></span><span></span><span></span></button>
     </div>
@@ -37,6 +37,7 @@
     <button id="requestsMobile" class="hidden">내 신청함</button>
     <button id="messagesMobile" class="hidden">쪽지함</button>
     <button id="coinsMobile" class="hidden">코인 충전</button>
+    <button id="supportMobile" class="hidden">고객센터</button>
     <button id="adminMobile" class="hidden">관리자 페이지</button>
     <button id="logoutMobile" class="hidden">로그아웃</button>
     <button class="primary full" id="applyMobile">지원하기</button>
@@ -254,7 +255,7 @@
     <p class="dialog-sub" id="companionEventLabel"></p>
     <form id="companionForm">
       <label>신청할 회원<select id="companionTarget" required></select></label>
-      <p class="member-hint" id="companionTargetHint"></p>
+      <div class="member-hint" id="companionTargetHint"></div>
       <label>전하고 싶은 메시지 (선택)<textarea id="companionMessage" rows="3" placeholder="함께하고 싶은 이유나 인사말을 남겨주세요"></textarea></label>
       <p class="auth-error" id="companionError"></p>
       <button class="primary full" type="submit">동행 신청 보내기</button>
@@ -266,6 +267,20 @@
     <span class="dialog-icon">◈</span>
     <h2>내 프로필</h2>
     <p class="dialog-sub">여기서 입력한 정보는 동행 신청 시 다른 회원에게 보여져요.</p>
+    <div class="profile-photo-row">
+      <div id="profilePhotoPreview"></div>
+      <div>
+        <button type="button" class="ghost small" id="profilePhotoBtn">사진 변경</button>
+        <input type="file" id="profilePhotoInput" class="hidden" accept="image/jpeg,image/png,image/gif,image/webp">
+        <p class="member-hint" id="profilePhotoHint">동행 신청 시 다른 회원에게 보여지는 사진이에요</p>
+      </div>
+    </div>
+    <div id="profileBadges" class="verify-badge-row"></div>
+
+    <hr class="profile-divider">
+    <h3 class="profile-subhead">본인 인증</h3>
+    <div id="identitySection"></div>
+
     <form id="profileForm">
       <label>연락처<input type="tel" id="profilePhone" placeholder="010-0000-0000"></label>
       <div class="field-row">
@@ -352,6 +367,32 @@
     <div id="chargeHistory" class="request-list"></div>
   </dialog>
 
+  <dialog id="supportDialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <span class="dialog-icon">🛎</span>
+    <h2>고객센터</h2>
+    <p class="dialog-sub">클레임/불만, 환불 요청, 불량 회원 신고 등 관리자에게 전달할 내용을 남겨주세요. 처리 상태는 아래 내 문의 내역에서 확인할 수 있어요.</p>
+    <form id="supportForm">
+      <label>문의 유형
+        <select id="supportCategory">
+          <option value="complaint">클레임/불만</option>
+          <option value="refund">환불 요청</option>
+          <option value="report">회원 신고</option>
+          <option value="other">기타 요청</option>
+        </select>
+      </label>
+      <label id="supportTargetField" class="hidden">신고할 회원<select id="supportTarget"></select></label>
+      <label id="supportChargeField" class="hidden">관련 충전 내역 (선택)<select id="supportCharge"><option value="">선택 안 함</option></select></label>
+      <label>제목<input type="text" id="supportSubject" required placeholder="예: 결제 취소 요청"></label>
+      <label>내용<textarea id="supportBody" required rows="4" placeholder="상세 내용을 적어주세요"></textarea></label>
+      <p class="auth-error" id="supportError"></p>
+      <button class="primary full" type="submit">접수하기</button>
+    </form>
+    <hr class="profile-divider">
+    <h3 class="profile-subhead">내 문의 내역</h3>
+    <div id="supportList" class="request-list"></div>
+  </dialog>
+
   <dialog id="messagesDialog">
     <button class="dialog-close" aria-label="닫기">×</button>
     <span class="dialog-icon">✉</span>
@@ -391,5 +432,16 @@
     <p class="member-hint" id="chatAttachHint"></p>
   </dialog>
 
+  <dialog id="callDialog" class="chat-dialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <div class="chat-header">
+      <h2 id="callPartnerName"></h2>
+      <span class="call-cost-hint" id="callCostHint"></span>
+    </div>
+    <div id="callFrameContainer" class="call-frame"></div>
+    <p class="auth-error" id="callError"></p>
+  </dialog>
+
+  <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
   <script src="assets/app.js"></script>
 </body></html>

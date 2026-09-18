@@ -23,16 +23,21 @@ const insertSession = db.prepare(
   `INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
 );
 const deleteSession = db.prepare(`DELETE FROM sessions WHERE token = ?`);
+const deleteSessionsForUser = db.prepare(`DELETE FROM sessions WHERE user_id = ?`);
 const getSession = db.prepare(
   `SELECT sessions.token, sessions.expires_at,
-          users.id, users.name, users.email, users.phone, users.role,
-          users.age_group, users.region, users.job, users.golf_experience, users.interest, users.intro
+          users.id, users.name, users.email, users.phone, users.role, users.suspended_at,
+          users.age_group, users.region, users.job, users.golf_experience, users.interest, users.intro,
+          users.photo_url, users.verified_identity_at, users.verified_employment_at, users.verified_golf_at
    FROM sessions JOIN users ON users.id = sessions.user_id
    WHERE sessions.token = ?`
 );
 const deleteExpiredSessions = db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`);
 
+// 계정당 로그인은 한 곳에서만 유지되도록, 새 세션을 만들기 전에 기존 세션을 모두 지운다.
+// (다른 기기/브라우저에서 로그인하면 이전 로그인은 다음 요청부터 자동으로 로그아웃 처리된다.)
 function createSession(res, userId) {
+  deleteSessionsForUser.run(userId);
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   insertSession.run(token, userId, expiresAt);
@@ -56,10 +61,20 @@ function currentUser(req) {
   if (!token) return null;
   const row = getSession.get(token);
   if (!row) return null;
+  if (row.suspended_at) {
+    deleteSession.run(token);
+    return null;
+  }
   return {
     id: row.id, name: row.name, email: row.email, phone: row.phone, role: row.role,
     ageGroup: row.age_group, region: row.region, job: row.job,
     golfExperience: row.golf_experience, interest: row.interest, intro: row.intro,
+    photoUrl: row.photo_url,
+    verified: {
+      identity: !!row.verified_identity_at,
+      employment: !!row.verified_employment_at,
+      golf: !!row.verified_golf_at,
+    },
   };
 }
 

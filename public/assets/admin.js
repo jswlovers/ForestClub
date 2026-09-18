@@ -68,18 +68,66 @@ document.querySelectorAll('.admin-tab').forEach(t=>t.onclick=()=>{
 });
 
 async function loadAll(){
-  await Promise.all([loadUsers(),loadApplications(),loadCompanions(),loadInterests(),loadCoinCharges(),loadCoinLedger(),loadNotifications()]);
+  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadTickets(),loadCoinCharges(),loadCoinLedger(),loadNotifications()]);
+}
+
+const REPORT_WARN_THRESHOLD=3,REPORT_SUSPEND_THRESHOLD=5;
+// 본인 인증은 "신분증 인증" 탭의 서류 심사로만 부여되므로 여기 수동 토글에는 넣지 않는다.
+const VERIFY_TYPE_LABEL={employment:'재직',golf:'골프'};
+
+function verifyToggles(u){
+  const identityPill=`<span class="status-pill ${u.verified_identity_at?'approved':'pending'}">${u.verified_identity_at?'✓ 본인인증':'본인 미인증'}</span>`;
+  const toggles=Object.entries(VERIFY_TYPE_LABEL).map(([type,label])=>{
+    const on=!!u[`verified_${type}_at`];
+    return `<button type="button" class="verify-toggle${on?' on':''}" data-action="toggle-verify" data-type="${type}" data-id="${u.id}" data-on="${on}">${on?'✓ ':''}${label}</button>`;
+  }).join('');
+  return identityPill+toggles;
 }
 
 async function loadUsers(){
   const users=await api('/api/admin/users');
   document.querySelector('#usersCount').textContent=`총 ${users.length}명`;
   document.querySelector('#usersBody').innerHTML=users.map(u=>`
-    <tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone||'-')}</td><td>${u.role==='admin'?'관리자':'회원'}</td><td>${u.coins.toLocaleString()}</td><td>${fmt(u.created_at)}</td></tr>
-  `).join('')||'<tr><td colspan="6">회원이 없어요</td></tr>';
+    <tr data-id="${u.id}">
+      <td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone||'-')}</td><td>${u.role==='admin'?'관리자':'회원'}</td><td>${u.coins.toLocaleString()}</td>
+      <td>${u.suspended_at?`<span class="status-pill suspended" title="${esc(u.suspended_reason||'')}">정지됨</span>`:'<span class="status-pill approved">정상</span>'}</td>
+      <td>${u.report_count?`<span class="status-pill ${u.report_count>=REPORT_SUSPEND_THRESHOLD?'suspended':(u.report_count>=REPORT_WARN_THRESHOLD?'pending':'')}">${u.report_count}건</span>`:'-'}</td>
+      <td>${u.role==='admin'?'-':verifyToggles(u)}</td>
+      <td>${fmt(u.created_at)}</td>
+      <td>${u.role==='admin'?'-':(u.suspended_at?`<div class="row-actions"><button class="approve-btn" data-action="unsuspend" data-id="${u.id}">정지 해제</button></div>`:`<div class="row-actions"><button class="reject-btn" data-action="suspend" data-id="${u.id}">이용 정지</button></div>`)}</td>
+    </tr>
+  `).join('')||'<tr><td colspan="10">회원이 없어요</td></tr>';
+
+  const notifyUser=document.querySelector('#notifyUser');
+  const withPhone=users.filter(u=>u.role!=='admin'&&u.phone);
+  notifyUser.innerHTML=withPhone.length?withPhone.map(u=>`<option value="${u.id}">${esc(u.name)} (${esc(u.email)})</option>`).join(''):'<option value="">연락처가 등록된 회원이 없어요</option>';
 }
 
-const STATUS_LABEL={pending:'대기중',approved:'승인됨',rejected:'거절됨',accepted:'수락됨',declined:'거절됨',cancelled:'취소됨',sent:'발송됨',mock:'모의발송',failed:'발송실패'};
+document.querySelector('#usersBody').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action]');
+  if(!btn) return;
+  if(btn.dataset.action==='toggle-verify'){
+    try{
+      const verified=btn.dataset.on!=='true';
+      await api(`/api/admin/users/${btn.dataset.id}/verify`,{method:'POST',body:{type:btn.dataset.type,verified}});
+      loadUsers();
+    }catch(err){showToast(err.message)}
+    return;
+  }
+  let body;
+  if(btn.dataset.action==='suspend'){
+    const reason=window.prompt('정지 사유를 입력해주세요 (선택)')||'';
+    body={reason};
+  }
+  try{
+    await api(`/api/admin/users/${btn.dataset.id}/${btn.dataset.action}`,{method:'POST',body});
+    showToast(btn.dataset.action==='suspend'?'회원 이용을 정지했어요':'정지를 해제했어요');
+    loadUsers();loadTickets();
+  }catch(err){showToast(err.message)}
+});
+
+const STATUS_LABEL={pending:'대기중',approved:'승인됨',rejected:'거절됨',accepted:'수락됨',declined:'거절됨',cancelled:'취소됨',sent:'발송됨',mock:'모의발송',failed:'발송실패',in_progress:'처리중',resolved:'처리완료'};
+const TICKET_CATEGORY_LABEL={complaint:'클레임/불만',refund:'환불 요청',report:'회원 신고',other:'기타 요청'};
 
 async function loadApplications(){
   const apps=await api('/api/admin/applications');
@@ -113,6 +161,39 @@ document.querySelector('#applicationsBody').addEventListener('click',async e=>{
   }catch(err){showToast(err.message)}
 });
 
+async function loadIdentityVerifications(){
+  const list=await api('/api/admin/identity-verifications');
+  document.querySelector('#identityCount').textContent=`총 ${list.length}건`;
+  document.querySelector('#identityBody').innerHTML=list.map(v=>`
+    <tr data-id="${v.id}">
+      <td>${esc(v.user_name)}<br>${esc(v.user_email)}</td>
+      <td><a href="${v.document_url}" target="_blank" rel="noopener"><img class="id-doc-thumb" src="${v.document_url}" alt="신분증"></a></td>
+      <td><span class="status-pill ${v.status}">${STATUS_LABEL[v.status]}</span></td>
+      <td>${esc(v.admin_note||'-')}</td>
+      <td>${fmt(v.created_at)}</td>
+      <td>${v.status==='pending'?`<div class="row-actions"><button class="approve-btn" data-action="approve" data-id="${v.id}">승인</button><button class="reject-btn" data-action="reject" data-id="${v.id}">반려</button></div>`:'-'}</td>
+    </tr>
+  `).join('')||'<tr><td colspan="6">접수된 신청이 없어요</td></tr>';
+}
+
+document.querySelector('#identityBody').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action]');
+  if(!btn) return;
+  let body;
+  if(btn.dataset.action==='approve'){
+    const note=window.prompt('메모를 남기시겠어요? (선택)')||'';
+    body={note};
+  }else{
+    const reason=window.prompt('반려 사유를 입력해주세요 (선택)')||'';
+    body={reason};
+  }
+  try{
+    await api(`/api/admin/identity-verifications/${btn.dataset.id}/${btn.dataset.action}`,{method:'POST',body});
+    showToast(btn.dataset.action==='approve'?'본인 인증을 승인했어요. 안내 문자를 보냈어요':'반려 처리했어요. 안내 문자를 보냈어요');
+    loadIdentityVerifications();loadUsers();loadNotifications();
+  }catch(err){showToast(err.message)}
+});
+
 async function loadCompanions(){
   const list=await api('/api/admin/companions');
   document.querySelector('#companionsCount').textContent=`총 ${list.length}건`;
@@ -130,6 +211,85 @@ async function loadInterests(){
   `).join('')||'<tr><td colspan="3">문의 내역이 없어요</td></tr>';
 }
 
+function ticketTargetCell(t){
+  if(t.category==='report'){
+    return t.target_name?`${esc(t.target_name)}${t.target_suspended_at?' <span class="status-pill suspended">정지됨</span>':''}`:'-';
+  }
+  if(t.category==='refund'){
+    return t.charge_amount_krw?`${t.charge_amount_krw.toLocaleString()}원 (${t.charge_coins.toLocaleString()}코인)`:'-';
+  }
+  return '-';
+}
+
+function ticketActionsCell(t){
+  const actions=[];
+  if(t.status==='pending'||t.status==='in_progress'){
+    if(t.category==='refund'){
+      actions.push(`<button class="approve-btn" data-action="refund" data-id="${t.id}">환불 처리</button>`);
+    }else{
+      actions.push(`<button class="approve-btn" data-action="resolve" data-id="${t.id}">완료 처리</button>`);
+    }
+    if(t.status==='pending'){
+      actions.push(`<button data-action="in_progress" data-id="${t.id}">처리중으로</button>`);
+    }
+    actions.push(`<button class="reject-btn" data-action="reject" data-id="${t.id}">반려</button>`);
+  }
+  if(t.category==='report'&&t.target_id){
+    actions.push(t.target_suspended_at
+      ?`<button class="approve-btn" data-action="unsuspend-target" data-id="${t.id}" data-target="${t.target_id}">정지 해제</button>`
+      :`<button class="reject-btn" data-action="suspend-target" data-id="${t.id}" data-target="${t.target_id}">회원 정지</button>`);
+  }
+  return actions.length?`<div class="row-actions">${actions.join('')}</div>`:'-';
+}
+
+async function loadTickets(){
+  const list=await api('/api/admin/tickets');
+  document.querySelector('#ticketsCount').textContent=`총 ${list.length}건`;
+  document.querySelector('#ticketsBody').innerHTML=list.map(t=>`
+    <tr data-id="${t.id}">
+      <td>${esc(t.user_name)}<br>${esc(t.user_email)}</td>
+      <td>${esc(TICKET_CATEGORY_LABEL[t.category]||t.category)}</td>
+      <td>${esc(t.subject)}</td>
+      <td>${esc(t.body)}</td>
+      <td>${ticketTargetCell(t)}</td>
+      <td><span class="status-pill ${t.status}">${STATUS_LABEL[t.status]}</span></td>
+      <td>${esc(t.admin_note||'-')}${t.refund_coins?`<br>환불 ${t.refund_coins.toLocaleString()}코인`:''}</td>
+      <td>${fmt(t.created_at)}</td>
+      <td>${ticketActionsCell(t)}</td>
+    </tr>
+  `).join('')||'<tr><td colspan="9">접수된 문의가 없어요</td></tr>';
+}
+
+document.querySelector('#ticketsBody').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action]');
+  if(!btn) return;
+  const action=btn.dataset.action;
+  try{
+    if(action==='refund'){
+      const amount=Number(window.prompt('환불할 코인 수를 입력해주세요')||'');
+      if(!amount||amount<=0){showToast('환불할 코인 수를 확인해주세요');return}
+      const note=window.prompt('메모를 남기시겠어요? (선택)')||'';
+      await api(`/api/admin/tickets/${btn.dataset.id}/refund`,{method:'POST',body:{amount,note}});
+      showToast('환불 처리했어요. 코인이 지급되고 안내 알림을 보냈어요');
+    }else if(action==='resolve'||action==='in_progress'||action==='reject'){
+      const note=window.prompt(action==='reject'?'반려 사유를 입력해주세요 (선택)':'메모를 남기시겠어요? (선택)')||'';
+      const status=action==='resolve'?'resolved':(action==='reject'?'rejected':'in_progress');
+      await api(`/api/admin/tickets/${btn.dataset.id}/status`,{method:'POST',body:{status,note}});
+      showToast('처리 상태를 업데이트했어요. 안내 알림을 보냈어요');
+    }else if(action==='suspend-target'||action==='unsuspend-target'){
+      const targetAction=action==='suspend-target'?'suspend':'unsuspend';
+      let body;
+      if(targetAction==='suspend'){
+        const reason=window.prompt('정지 사유를 입력해주세요 (선택)')||'';
+        body={reason};
+      }
+      await api(`/api/admin/users/${btn.dataset.target}/${targetAction}`,{method:'POST',body});
+      showToast(targetAction==='suspend'?'회원 이용을 정지했어요':'정지를 해제했어요');
+    }
+    loadTickets();loadUsers();loadCoinLedger();loadNotifications();
+  }catch(err){showToast(err.message)}
+});
+
 async function loadNotifications(){
   const list=await api('/api/admin/notifications');
   document.querySelector('#notificationsCount').textContent=`최근 ${list.length}건`;
@@ -138,6 +298,35 @@ async function loadNotifications(){
     <td><span class="status-pill ${n.status}">${STATUS_LABEL[n.status]}</span></td><td>${fmt(n.created_at)}</td></tr>
   `).join('')||'<tr><td colspan="6">발송 기록이 없어요</td></tr>';
 }
+
+const notifyForm=document.querySelector('#notifyForm'),notifyError=document.querySelector('#notifyError');
+const notifyTarget=document.querySelector('#notifyTarget'),notifyUserField=document.querySelector('#notifyUserField');
+
+notifyTarget.addEventListener('change',()=>{
+  notifyUserField.classList.toggle('hidden',notifyTarget.value!=='user');
+});
+
+notifyForm.onsubmit=async e=>{
+  e.preventDefault();
+  notifyError.textContent='';
+  const target=notifyTarget.value;
+  const message=document.querySelector('#notifyMessage').value.trim();
+  if(!message){notifyError.textContent='보낼 메시지를 입력해주세요';return}
+  const body={target,message};
+  if(target==='user'){
+    const userId=Number(document.querySelector('#notifyUser').value);
+    if(!userId){notifyError.textContent='보낼 회원을 선택해주세요';return}
+    body.userId=userId;
+  }else if(!window.confirm('연락처가 등록된 전체 회원에게 발송할까요?')){
+    return;
+  }
+  try{
+    const result=await api('/api/admin/notify',{method:'POST',body});
+    showToast(`발송 완료: 총 ${result.total}건 중 성공 ${result.sent}건${result.failed?`, 실패 ${result.failed}건`:''}`);
+    document.querySelector('#notifyMessage').value='';
+    loadNotifications();
+  }catch(err){notifyError.textContent=err.message}
+};
 
 async function loadCoinCharges(){
   const list=await api('/api/admin/coin-charges');
@@ -174,7 +363,7 @@ document.querySelector('#coinChargesBody').addEventListener('click',async e=>{
 });
 
 const LEDGER_ACCOUNT_LABEL={'platform:cash':'플랫폼 현금','platform:revenue':'플랫폼 매출'};
-const LEDGER_TYPE_LABEL={purchase:'코인 충전',message_spend:'쪽지 발송'};
+const LEDGER_TYPE_LABEL={purchase:'코인 충전',message_spend:'쪽지 발송',call_voice_spend:'보이스톡 이용',call_video_spend:'페이스톡 이용',refund:'환불 지급'};
 const LEDGER_DIRECTION_LABEL={debit:'차변',credit:'대변'};
 
 async function loadCoinLedger(){

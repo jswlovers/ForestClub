@@ -37,21 +37,30 @@
       <div class="admin-tabs">
         <button class="admin-tab active" data-tab="users">회원 관리</button>
         <button class="admin-tab" data-tab="applications">지원서 심사</button>
+        <button class="admin-tab" data-tab="identity">신분증 인증</button>
         <button class="admin-tab" data-tab="companions">동행 신청 현황</button>
         <button class="admin-tab" data-tab="interests">참가 문의</button>
+        <button class="admin-tab" data-tab="tickets">고객센터/신고</button>
         <button class="admin-tab" data-tab="coincharges">코인 충전 승인</button>
         <button class="admin-tab" data-tab="coinledger">코인 원장</button>
+        <button class="admin-tab" data-tab="notify">안내 메시지 발송</button>
         <button class="admin-tab" data-tab="notifications">알림 발송 로그</button>
       </div>
 
       <section class="admin-panel" id="panel-users">
         <div class="panel-head"><h2>회원 관리</h2><span class="panel-count" id="usersCount"></span></div>
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>역할</th><th>보유 코인</th><th>가입일</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>역할</th><th>보유 코인</th><th>상태</th><th>신고</th><th>인증</th><th>가입일</th><th>처리</th></tr></thead><tbody id="usersBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-applications">
         <div class="panel-head"><h2>지원서 심사</h2><span class="panel-count" id="applicationsCount"></span></div>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>연락처</th><th>이메일</th><th>연령대</th><th>지역</th><th>직업</th><th>골프구력</th><th>관심분야</th><th>추천인</th><th>소개</th><th>상태</th><th>메모/사유</th><th>접수일</th><th>처리</th></tr></thead><tbody id="applicationsBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-identity">
+        <div class="panel-head"><h2>신분증 인증</h2><span class="panel-count" id="identityCount"></span></div>
+        <p class="dialog-sub">회원이 올린 신분증 사진으로 본인 여부를 확인하고 승인/반려해주세요. 승인 즉시 프로필에 본인 인증 배지가 표시됩니다.</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>회원</th><th>신분증</th><th>상태</th><th>메모/사유</th><th>신청일</th><th>처리</th></tr></thead><tbody id="identityBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-companions">
@@ -64,6 +73,12 @@
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>회원</th><th>모임</th><th>문의일</th></tr></thead><tbody id="interestsBody"></tbody></table></div>
       </section>
 
+      <section class="admin-panel hidden" id="panel-tickets">
+        <div class="panel-head"><h2>고객센터/신고</h2><span class="panel-count" id="ticketsCount"></span></div>
+        <p class="dialog-sub">회원이 접수한 클레임/불만, 환불 요청, 회원 신고, 기타 문의예요. 환불 요청은 코인 지급까지 한 번에 처리되고, 회원 신고는 바로 계정을 정지할 수 있어요.</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>작성자</th><th>유형</th><th>제목</th><th>내용</th><th>대상/관련내역</th><th>상태</th><th>메모</th><th>접수일</th><th>처리</th></tr></thead><tbody id="ticketsBody"></tbody></table></div>
+      </section>
+
       <section class="admin-panel hidden" id="panel-coincharges">
         <div class="panel-head"><h2>코인 충전 승인</h2><span class="panel-count" id="coinChargesCount"></span></div>
         <p class="dialog-sub">회원이 무통장입금 등으로 충전을 신청하면, 입금을 확인한 뒤 승인해주세요. 승인 즉시 코인이 지급되고 안내 알림이 발송됩니다.</p>
@@ -74,6 +89,23 @@
         <div class="panel-head"><h2>코인 원장</h2><span class="panel-count" id="coinLedgerCount"></span></div>
         <p class="dialog-sub">복식부기 방식 원장이에요. 거래 하나당 차변(debit)·대변(credit) 두 줄이 항상 짝을 이루고, 같은 거래는 같은 거래그룹으로 묶여요.</p>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>거래그룹</th><th>계정</th><th>구분</th><th>금액</th><th>종류</th><th>메모</th><th>일시</th></tr></thead><tbody id="coinLedgerBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-notify">
+        <div class="panel-head"><h2>안내 메시지 발송</h2></div>
+        <p class="dialog-sub">결제 확인, 이벤트/점검 공지 등 회원에게 전달할 메시지를 보내요. 카카오 알림톡 키와 템플릿(KAKAO_TEMPLATE_ADMIN_NOTICE)이 설정되면 알림톡으로, 아니면 문자로 발송되고 발송 로그는 '알림 발송 로그' 탭에서 확인할 수 있어요.</p>
+        <form id="notifyForm" class="admin-narrow-form">
+          <label>받는 대상
+            <select id="notifyTarget">
+              <option value="all">전체 회원 (연락처 등록자)</option>
+              <option value="user">특정 회원</option>
+            </select>
+          </label>
+          <label id="notifyUserField" class="hidden">회원 선택<select id="notifyUser"></select></label>
+          <label>메시지 내용<textarea id="notifyMessage" rows="4" required placeholder="예: 12월 정기 라운딩 참가비 결제가 확인되었습니다. 감사합니다."></textarea></label>
+          <p class="auth-error" id="notifyError"></p>
+          <button class="primary" type="submit">발송하기</button>
+        </form>
       </section>
 
       <section class="admin-panel hidden" id="panel-notifications">

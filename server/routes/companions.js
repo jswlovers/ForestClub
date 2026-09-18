@@ -13,7 +13,10 @@ const requestLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 30, message: '
 // 다른 회원에게 특정 모임(라운딩/여행)의 동행을 신청할 수 있도록, 신청 후보로 보여줄 회원 목록.
 // 프로필은 회원이 "내 프로필"에서 직접 입력/수정한 값을 그대로 노출한다.
 const listMembers = db.prepare(`
-  SELECT id, name, age_group, region, interest, intro
+  SELECT id, name, age_group, region, interest, golf_experience, intro, photo_url,
+         verified_identity_at IS NOT NULL AS verified_identity,
+         verified_employment_at IS NOT NULL AS verified_employment,
+         verified_golf_at IS NOT NULL AS verified_golf
   FROM users
   WHERE role != 'admin' AND id != ?
   ORDER BY created_at DESC

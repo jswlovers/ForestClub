@@ -3,6 +3,21 @@ hamburger.onclick=()=>mobileMenu.classList.toggle('show');
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
+function avatarHtml(photoUrl,name,size){
+  size=size||36;
+  if(photoUrl) return `<img class="avatar" src="${esc(photoUrl)}" alt="${esc(name||'')}" style="width:${size}px;height:${size}px">`;
+  return `<span class="avatar avatar-fallback" style="width:${size}px;height:${size}px">${esc((name||'?').trim().charAt(0)||'?')}</span>`;
+}
+
+const VERIFY_BADGE_LABEL={identity:'본인인증',employment:'재직인증',golf:'골프인증'};
+function verifyBadgesHtml(m){
+  const badges=[];
+  if(m.verified_identity)badges.push(`<span class="verify-badge">✓ ${VERIFY_BADGE_LABEL.identity}</span>`);
+  if(m.verified_employment)badges.push(`<span class="verify-badge">✓ ${VERIFY_BADGE_LABEL.employment}</span>`);
+  if(m.verified_golf)badges.push(`<span class="verify-badge">✓ ${VERIFY_BADGE_LABEL.golf}</span>`);
+  return badges.join('');
+}
+
 async function api(path,options={}){
   const isFormData=options.body instanceof FormData;
   const res=await fetch(path,{
@@ -107,6 +122,7 @@ const profileBtn=document.querySelector('#profileBtn'),profileMobile=document.qu
 const myApplicationsBtn=document.querySelector('#myApplicationsBtn'),myApplicationsMobile=document.querySelector('#myApplicationsMobile');
 const messagesBtn=document.querySelector('#messagesBtn'),messagesMobile=document.querySelector('#messagesMobile');
 const coinsBtn=document.querySelector('#coinsBtn'),coinsMobile=document.querySelector('#coinsMobile');
+const supportBtn=document.querySelector('#supportBtn'),supportMobile=document.querySelector('#supportMobile');
 const coinBadge=document.querySelector('#coinBadge');
 const logoutBtn=document.querySelector('#logoutBtn'),logoutMobile=document.querySelector('#logoutMobile');
 
@@ -132,7 +148,7 @@ function renderAuth(){
     setUnreadBadge(0);
     messageBaselineReady=false;
   }
-  [requestsBtn,requestsMobile,profileBtn,profileMobile,myApplicationsBtn,myApplicationsMobile,messagesBtn,messagesMobile,coinsBtn,coinsMobile].forEach(el=>el.classList.toggle('hidden',!loggedIn));
+  [requestsBtn,requestsMobile,profileBtn,profileMobile,myApplicationsBtn,myApplicationsMobile,messagesBtn,messagesMobile,coinsBtn,coinsMobile,supportBtn,supportMobile].forEach(el=>el.classList.toggle('hidden',!loggedIn));
 }
 
 async function refreshSession(){
@@ -238,21 +254,41 @@ document.querySelectorAll('.companion').forEach(b=>b.addEventListener('click',as
   companionDialog.showModal();
   try{
     membersCache=await api('/api/companions/members');
+    membersCache.sort((a,b)=>matchScore(b)-matchScore(a));
     if(!membersCache.length){
       companionTarget.innerHTML='<option value="">신청 가능한 회원이 아직 없어요</option>';
     }else{
-      companionTarget.innerHTML=membersCache.map(m=>`<option value="${m.id}">${esc(m.name)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join('');
+      companionTarget.innerHTML=membersCache.map(m=>`<option value="${m.id}">${matchScore(m)>0?'🎯 ':''}${esc(m.name)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join('');
       updateCompanionHint();
     }
   }catch(err){companionError.textContent=err.message}
 }));
 
+// 내 프로필(관심분야/지역/골프구력/연령대)과 겹치는 항목이 많을수록 추천 우선순위를 높인다.
+function matchScore(m){
+  if(!currentUser) return 0;
+  let score=0;
+  if(currentUser.interest&&m.interest===currentUser.interest)score+=2;
+  if(currentUser.region&&m.region===currentUser.region)score+=1;
+  if(currentUser.golfExperience&&m.golf_experience===currentUser.golfExperience)score+=1;
+  if(currentUser.ageGroup&&m.age_group===currentUser.ageGroup)score+=1;
+  return score;
+}
+
 companionTarget.addEventListener('change',updateCompanionHint);
 function updateCompanionHint(){
   const m=membersCache.find(x=>String(x.id)===companionTarget.value);
-  if(!m){companionTargetHint.textContent='';return}
+  if(!m){companionTargetHint.innerHTML='';return}
   const parts=[m.age_group,m.region,m.interest].filter(Boolean);
-  companionTargetHint.textContent=(parts.length?parts.join(' · ')+' — ':'')+(m.intro||'자기소개가 아직 없어요');
+  const introText=(parts.length?parts.join(' · ')+' — ':'')+(m.intro||'자기소개가 아직 없어요');
+  companionTargetHint.innerHTML=`
+    <div class="hint-row">
+      ${avatarHtml(m.photo_url,m.name,44)}
+      <div class="hint-body">
+        ${matchScore(m)>0?'<span class="recommend-tag">🎯 추천</span>':''}${verifyBadgesHtml(m)}
+        <p>${esc(introText)}</p>
+      </div>
+    </div>`;
 }
 
 companionForm.onsubmit=async e=>{
@@ -323,6 +359,17 @@ document.querySelectorAll('#incomingList,#outgoingList').forEach(list=>list.addE
 const profileDialog=document.querySelector('#profileDialog'),profileForm=document.querySelector('#profileForm');
 const profileError=document.querySelector('#profileError');
 
+function renderProfilePhotoAndBadges(){
+  document.querySelector('#profilePhotoPreview').innerHTML=avatarHtml(currentUser.photoUrl,currentUser.name,64);
+  const v=currentUser.verified||{};
+  const badges=[
+    v.identity?`<span class="verify-badge">✓ ${VERIFY_BADGE_LABEL.identity}</span>`:`<span class="verify-badge pending">${VERIFY_BADGE_LABEL.identity} 미인증</span>`,
+    v.employment?`<span class="verify-badge">✓ ${VERIFY_BADGE_LABEL.employment}</span>`:`<span class="verify-badge pending">${VERIFY_BADGE_LABEL.employment} 미인증</span>`,
+    v.golf?`<span class="verify-badge">✓ ${VERIFY_BADGE_LABEL.golf}</span>`:`<span class="verify-badge pending">${VERIFY_BADGE_LABEL.golf} 미인증</span>`,
+  ];
+  document.querySelector('#profileBadges').innerHTML=badges.join('');
+}
+
 function openProfile(){
   mobileMenu.classList.remove('show');authMenu.classList.remove('show');
   profileError.textContent='';passwordError.textContent='';passwordForm.reset();
@@ -333,9 +380,75 @@ function openProfile(){
   document.querySelector('#profileGolf').value=currentUser.golfExperience||'';
   document.querySelector('#profileInterest').value=currentUser.interest||'';
   document.querySelector('#profileIntro').value=currentUser.intro||'';
+  renderProfilePhotoAndBadges();
   profileDialog.showModal();
+  loadIdentitySection();
 }
 profileBtn.onclick=openProfile;profileMobile.onclick=openProfile;
+
+const profilePhotoBtn=document.querySelector('#profilePhotoBtn'),profilePhotoInput=document.querySelector('#profilePhotoInput');
+const profilePhotoHint=document.querySelector('#profilePhotoHint');
+profilePhotoBtn.onclick=()=>profilePhotoInput.click();
+profilePhotoInput.onchange=async()=>{
+  const file=profilePhotoInput.files[0];
+  if(!file) return;
+  if(file.size>5*1024*1024){profilePhotoHint.textContent='사진은 5MB 이하만 올릴 수 있어요';profilePhotoInput.value='';return}
+  const fd=new FormData();
+  fd.append('photo',file);
+  try{
+    const {photoUrl}=await api('/api/auth/photo',{method:'POST',body:fd});
+    currentUser.photoUrl=photoUrl;
+    renderProfilePhotoAndBadges();
+    profilePhotoHint.textContent='동행 신청 시 다른 회원에게 보여지는 사진이에요';
+    showToast('프로필 사진을 변경했어요');
+  }catch(err){profilePhotoHint.textContent=err.message}
+  profilePhotoInput.value='';
+};
+
+/* ── 본인 인증 (신분증 업로드) ────────────────────────────── */
+const identitySection=document.querySelector('#identitySection');
+
+function renderIdentitySection(latest){
+  if(currentUser.verified?.identity){
+    identitySection.innerHTML='<p class="member-hint">✓ 본인 인증이 완료됐어요.</p>';
+    return;
+  }
+  if(latest&&latest.status==='pending'){
+    identitySection.innerHTML=`<p class="member-hint">신분증 심사가 진행 중이에요. 결과가 나오면 안내드릴게요. (${new Date(latest.created_at).toLocaleString('ko-KR')} 접수)</p>`;
+    return;
+  }
+  const rejectedNote=latest&&latest.status==='rejected'
+    ?`<p class="member-hint">지난 신청이 반려됐어요.${latest.admin_note?` (사유: ${esc(latest.admin_note)})`:''} 다시 올려주세요.</p>`:'';
+  identitySection.innerHTML=`
+    ${rejectedNote}
+    <p class="member-hint">주민등록증/운전면허증 등 신분증 사진을 올려주세요. 본인 확인 목적으로만 사용되며 관리자만 열람할 수 있어요.</p>
+    <button type="button" class="ghost small" id="identityUploadBtn">신분증 업로드</button>
+    <input type="file" id="identityUploadInput" class="hidden" accept="image/jpeg,image/png,image/webp">
+    <p class="auth-error" id="identityError"></p>`;
+  document.querySelector('#identityUploadBtn').onclick=()=>document.querySelector('#identityUploadInput').click();
+  document.querySelector('#identityUploadInput').onchange=async()=>{
+    const input=document.querySelector('#identityUploadInput');
+    const errorEl=document.querySelector('#identityError');
+    const file=input.files[0];
+    if(!file) return;
+    if(file.size>8*1024*1024){errorEl.textContent='사진은 8MB 이하만 올릴 수 있어요';input.value='';return}
+    const fd=new FormData();
+    fd.append('document',file);
+    try{
+      await api('/api/identity',{method:'POST',body:fd});
+      showToast('신분증을 제출했어요. 확인 후 안내드릴게요');
+      loadIdentitySection();
+    }catch(err){errorEl.textContent=err.message}
+  };
+}
+
+async function loadIdentitySection(){
+  identitySection.innerHTML='<p class="member-hint">불러오는 중...</p>';
+  try{
+    const list=await api('/api/identity/me');
+    renderIdentitySection(list[0]);
+  }catch(err){identitySection.innerHTML=`<p class="member-hint">${esc(err.message)}</p>`}
+}
 
 profileForm.onsubmit=async e=>{
   e.preventDefault();
@@ -444,6 +557,78 @@ chargeForm.onsubmit=async e=>{
   }catch(err){chargeError.textContent=err.message}
 };
 
+/* ── 고객센터 (클레임/환불/신고/기타 문의) ───────────────── */
+const supportDialog=document.querySelector('#supportDialog'),supportForm=document.querySelector('#supportForm');
+const supportError=document.querySelector('#supportError'),supportList=document.querySelector('#supportList');
+const supportCategory=document.querySelector('#supportCategory');
+const supportTargetField=document.querySelector('#supportTargetField'),supportTarget=document.querySelector('#supportTarget');
+const supportChargeField=document.querySelector('#supportChargeField'),supportCharge=document.querySelector('#supportCharge');
+
+const TICKET_CATEGORY_LABEL={complaint:'클레임/불만',refund:'환불 요청',report:'회원 신고',other:'기타 요청'};
+const TICKET_STATUS_LABEL={pending:'접수됨',in_progress:'처리중',resolved:'처리완료',rejected:'반려됨'};
+
+function updateSupportFields(){
+  const cat=supportCategory.value;
+  supportTargetField.classList.toggle('hidden',cat!=='report');
+  supportChargeField.classList.toggle('hidden',cat!=='refund');
+}
+supportCategory.addEventListener('change',updateSupportFields);
+
+function openSupport(){
+  mobileMenu.classList.remove('show');authMenu.classList.remove('show');
+  supportError.textContent='';supportForm.reset();
+  updateSupportFields();
+  supportDialog.showModal();
+  loadSupportOptions();
+  loadMyTickets();
+}
+supportBtn.onclick=openSupport;supportMobile.onclick=openSupport;
+
+async function loadSupportOptions(){
+  try{
+    const members=await api('/api/tickets/target-members');
+    supportTarget.innerHTML=members.length?members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join(''):'<option value="">신고할 수 있는 회원이 없어요</option>';
+  }catch{supportTarget.innerHTML='<option value="">불러오지 못했어요</option>'}
+  try{
+    const charges=await api('/api/coins/charge-requests/me');
+    supportCharge.innerHTML='<option value="">선택 안 함</option>'+charges.map(c=>`<option value="${c.id}">${new Date(c.created_at).toLocaleDateString('ko-KR')} · ${c.amount_krw.toLocaleString()}원 (${c.coins.toLocaleString()}코인)</option>`).join('');
+  }catch{}
+}
+
+async function loadMyTickets(){
+  supportList.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  try{
+    const list=await api('/api/tickets/me');
+    supportList.innerHTML=list.length?list.map(t=>`
+      <div class="request-card">
+        <h4>${esc(TICKET_CATEGORY_LABEL[t.category]||t.category)} · ${esc(t.subject)}<span class="req-status ${t.status}">${TICKET_STATUS_LABEL[t.status]}</span></h4>
+        <p>${esc(t.body)}</p>
+        ${t.target_name?`<p>신고 대상: ${esc(t.target_name)}</p>`:''}
+        ${t.refund_coins?`<p>환불된 코인: ${t.refund_coins.toLocaleString()}코인</p>`:''}
+        ${t.admin_note?`<p>운영진 메모: ${esc(t.admin_note)}</p>`:''}
+        <div class="req-meta">${new Date(t.created_at).toLocaleString('ko-KR')}</div>
+      </div>`).join(''):'<p class="request-empty">아직 접수한 문의가 없어요</p>';
+  }catch(err){supportList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+}
+
+supportForm.onsubmit=async e=>{
+  e.preventDefault();
+  const category=supportCategory.value;
+  const subject=document.querySelector('#supportSubject').value.trim();
+  const body=document.querySelector('#supportBody').value.trim();
+  if(!subject||!body){supportError.textContent='제목과 내용을 입력해주세요';return}
+  const payload={category,subject,body};
+  if(category==='report')payload.targetUserId=Number(supportTarget.value);
+  if(category==='refund'&&supportCharge.value)payload.coinChargeId=Number(supportCharge.value);
+  try{
+    await api('/api/tickets',{method:'POST',body:payload});
+    supportForm.reset();
+    updateSupportFields();
+    showToast('문의가 접수됐어요. 처리 결과를 안내드릴게요');
+    loadMyTickets();
+  }catch(err){supportError.textContent=err.message}
+};
+
 /* ── 쪽지 (채팅) ───────────────────────────────────────── */
 const messagesDialog=document.querySelector('#messagesDialog');
 const conversationList=document.querySelector('#conversationList');
@@ -473,6 +658,7 @@ async function loadConversations(){
     const list=await api('/api/messages/conversations');
     conversationList.innerHTML=list.length?list.map(c=>`
       <button type="button" class="conversation-card" data-user-id="${c.userId}">
+        ${avatarHtml(c.photoUrl,c.name,40)}
         <div class="conv-main">
           <h4>${esc(c.name)}</h4>
           <p>${c.lastMine?'나: ':''}${esc(c.lastPreview)}</p>
@@ -497,6 +683,7 @@ document.querySelector('#newChatBtn').onclick=async()=>{
     const members=await api('/api/messages/members');
     newChatMembers.innerHTML=members.length?members.map(m=>`
       <button type="button" class="conversation-card" data-user-id="${m.id}" data-name="${esc(m.name)}">
+        ${avatarHtml(m.photo_url,m.name,40)}
         <div class="conv-main"><h4>${esc(m.name)}</h4><p>${esc([m.age_group,m.region,m.interest].filter(Boolean).join(' · ')||'프로필 미등록')}</p></div>
       </button>`).join(''):'<p class="request-empty">대화할 수 있는 회원이 없어요</p>';
   }catch(err){newChatMembers.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
@@ -512,7 +699,7 @@ newChatMembers.addEventListener('click',e=>{
 function renderAttachment(m){
   if(m.attachment_type==='image') return `<a href="${m.attachment_url}" target="_blank" rel="noopener"><img src="${m.attachment_url}" alt="사진"></a>`;
   if(m.attachment_type==='file') return `<a class="chat-file-link" href="${m.attachment_url}" target="_blank" rel="noopener">📎 ${esc(m.attachment_name||'파일')}</a>`;
-  if(m.attachment_type==='call') return `<a class="chat-call-link" href="${m.attachment_url}" target="_blank" rel="noopener">${m.attachment_name==='video'?'🎥':'🎙'} 통화 참여하기</a>`;
+  if(m.attachment_type==='call') return `<button type="button" class="chat-call-link" data-room-url="${esc(m.attachment_url)}" data-call-type="${m.attachment_name}">${m.attachment_name==='video'?'🎥':'🎙'} 통화 참여하기</button>`;
   return '';
 }
 
@@ -587,19 +774,102 @@ chatFileInput.onchange=()=>{
   chatAttachHint.textContent=`첨부됨: ${file.name}`;
 };
 
+/* ── 보이스톡/페이스톡 (초당 과금, 화면 내 통화) ─────────── */
+const callDialog=document.querySelector('#callDialog'),callFrameContainer=document.querySelector('#callFrameContainer');
+const callPartnerName=document.querySelector('#callPartnerName'),callCostHint=document.querySelector('#callCostHint'),callError=document.querySelector('#callError');
+const CALL_COST_PER_SEC={voice:10,video:100};
+let dailyCallFrame=null,callTickTimer=null,activeCallType=null;
+
+async function canEnterCall(){
+  try{
+    const info=await api('/api/calls/can-enter');
+    if(!info.allowed){
+      showToast(`코인이 ${info.entryMin.toLocaleString()}개 이하면 통화를 시작할 수 없어요. 충전 후 다시 시도해주세요`);
+      openCoins();
+      return false;
+    }
+    return true;
+  }catch(err){showToast(err.message);return false}
+}
+
+async function joinCall(roomUrl,callType,partnerName){
+  if(!(await canEnterCall())) return;
+  if(!window.DailyIframe){showToast('통화 모듈을 불러오지 못했어요. 새로고침 후 다시 시도해주세요');return}
+  activeCallType=callType;
+  callError.textContent='';
+  callPartnerName.textContent=`${partnerName||chatPartnerName.textContent} — ${callType==='video'?'페이스톡':'보이스톡'}`;
+  callCostHint.textContent=`초당 ${CALL_COST_PER_SEC[callType]}코인 사용 중`;
+  callFrameContainer.innerHTML='';
+  callDialog.showModal();
+  try{
+    dailyCallFrame=window.DailyIframe.createFrame(callFrameContainer,{iframeStyle:{width:'100%',height:'100%',border:'0'}});
+    dailyCallFrame.on('left-meeting',()=>endCall(false));
+    // 상대방이 통화를 끊어 방에 나(local) 혼자 남으면, 내 쪽도 자동으로 통화를 종료한다.
+    dailyCallFrame.on('participant-left',()=>{
+      if(!callTickTimer) return;
+      const remaining=Object.keys(dailyCallFrame.participants()).filter(id=>id!=='local');
+      if(remaining.length===0){
+        showToast('상대방이 통화를 종료했어요');
+        endCall(true);
+      }
+    });
+    const joinTimeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('통화 연결이 지연되고 있어요. 네트워크 상태를 확인하고 다시 시도해주세요')),20000));
+    await Promise.race([dailyCallFrame.join({url:roomUrl}),joinTimeout]);
+    startCallBilling();
+  }catch(err){
+    showToast(err.message||'통화방에 접속하지 못했어요');
+    endCall(false);
+  }
+}
+
+function startCallBilling(){
+  clearInterval(callTickTimer);
+  callTickTimer=setInterval(async()=>{
+    try{
+      const res=await api('/api/calls/tick',{method:'POST',body:{callType:activeCallType}});
+      refreshCoinBadge();
+      if(res.shouldEnd){
+        showToast(`코인이 ${res.continueMin.toLocaleString()}개 이하로 떨어져 통화를 종료해요. 충전 후 다시 이용해주세요`);
+        endCall(true);
+        openCoins();
+      }
+    }catch(err){
+      showToast(err.message||'코인이 부족해 통화를 종료해요');
+      endCall(true);
+      openCoins();
+    }
+  },1000);
+}
+
+function endCall(leaveFrame){
+  clearInterval(callTickTimer);callTickTimer=null;
+  if(leaveFrame&&dailyCallFrame){try{dailyCallFrame.leave()}catch{}}
+  if(dailyCallFrame){try{dailyCallFrame.destroy()}catch{}dailyCallFrame=null}
+  callDialog.close();
+}
+
+chatThread.addEventListener('click',e=>{
+  const btn=e.target.closest('.chat-call-link');
+  if(!btn) return;
+  joinCall(btn.dataset.roomUrl,btn.dataset.callType,chatPartnerName.textContent);
+});
+
+// X 버튼/Esc 등 어떤 방식으로 통화창이 닫혀도 과금 타이머와 통화 세션이 함께 정리되도록.
+callDialog.addEventListener('close',()=>{ if(callTickTimer) endCall(true) });
+
 ['voiceCallBtn','videoCallBtn'].forEach(id=>{
   document.querySelector(`#${id}`).onclick=async()=>{
     const callType=id==='voiceCallBtn'?'voice':'video';
     chatError.textContent='';
+    if(!(await canEnterCall())) return;
     try{
       const fd=new FormData();
       fd.append('recipientUserId',currentChatPartnerId);
       fd.append('kind','call');
       fd.append('callType',callType);
       const res=await api('/api/messages',{method:'POST',body:fd});
-      refreshCoinBadge();
       await loadChatThread(true);
-      if(res.attachmentUrl) window.open(res.attachmentUrl,'_blank','noopener');
+      if(res.attachmentUrl) joinCall(res.attachmentUrl,callType,chatPartnerName.textContent);
     }catch(err){chatError.textContent=err.message}
   };
 });

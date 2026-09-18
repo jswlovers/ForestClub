@@ -1,4 +1,6 @@
 const path = require('node:path');
+const fs = require('node:fs');
+const https = require('node:https');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 
@@ -11,6 +13,9 @@ const eventRoutes = require('./routes/events');
 const companionRoutes = require('./routes/companions');
 const coinRoutes = require('./routes/coins');
 const messageRoutes = require('./routes/messages');
+const callRoutes = require('./routes/calls');
+const ticketRoutes = require('./routes/tickets');
+const identityRoutes = require('./routes/identity');
 const adminRoutes = require('./routes/admin');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@forestclub.kr';
@@ -46,6 +51,9 @@ app.use('/api/events', eventRoutes);
 app.use('/api/companions', companionRoutes);
 app.use('/api/coins', coinRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/calls', callRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/identity', identityRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -56,6 +64,21 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`포레스트클럽 서버 실행 중: http://localhost:${PORT}`);
-});
+
+// HTTPS_CERT_PATH/HTTPS_KEY_PATH가 설정돼 있으면 HTTPS로 직접 서비스한다.
+// 모바일 브라우저는 보안 컨텍스트(HTTPS)가 아니면 카메라/마이크(WebRTC) 접근 자체를
+// 막기 때문에, 같은 네트워크의 폰에서 보이스톡/페이스톡을 테스트하려면 필요하다.
+// mkcert로 로컬에서 신뢰되는 인증서를 만들 수 있다: mkcert <PC의 LAN IP> localhost 127.0.0.1
+if (process.env.HTTPS_CERT_PATH && process.env.HTTPS_KEY_PATH) {
+  const options = {
+    cert: fs.readFileSync(process.env.HTTPS_CERT_PATH),
+    key: fs.readFileSync(process.env.HTTPS_KEY_PATH),
+  };
+  https.createServer(options, app).listen(PORT, () => {
+    console.log(`포레스트클럽 서버 실행 중 (HTTPS): https://localhost:${PORT}`);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`포레스트클럽 서버 실행 중: http://localhost:${PORT}`);
+  });
+}

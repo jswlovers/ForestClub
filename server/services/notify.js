@@ -21,6 +21,15 @@ const TEMPLATE_ENV = {
   coin_charge_approved: 'KAKAO_TEMPLATE_COIN_CHARGE_APPROVED',
   coin_charge_rejected: 'KAKAO_TEMPLATE_COIN_CHARGE_REJECTED',
   new_message: 'KAKAO_TEMPLATE_NEW_MESSAGE',
+  ticket_status: 'KAKAO_TEMPLATE_TICKET_STATUS',
+  ticket_refund: 'KAKAO_TEMPLATE_TICKET_REFUND',
+  auto_warning: 'KAKAO_TEMPLATE_AUTO_WARNING',
+  auto_suspend: 'KAKAO_TEMPLATE_AUTO_SUSPEND',
+  identity_approved: 'KAKAO_TEMPLATE_IDENTITY_APPROVED',
+  identity_rejected: 'KAKAO_TEMPLATE_IDENTITY_REJECTED',
+  // 관리자가 회원 전체/개별에게 임의로 보내는 안내 메시지(결제 안내, 공지 등).
+  // 알림톡 템플릿은 자유 문구를 그대로 담을 수 있도록 변수 하나(#{message})로 구성해 등록하세요.
+  admin_notice: 'KAKAO_TEMPLATE_ADMIN_NOTICE',
 };
 
 /**

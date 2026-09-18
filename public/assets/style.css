@@ -152,11 +152,11 @@ dialog::backdrop{background:rgba(19,37,32,.6);backdrop-filter:blur(4px)}
 .dialog-icon{display:grid;place-items:center;width:50px;height:50px;background:#f1ece0;color:var(--gold);border-radius:16px;font-size:22px}
 dialog h2{margin:16px 0 6px;font-size:22px}
 .dialog-sub{color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 6px}
-.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label,#chargeForm label,#composeForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
-#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input,#companionForm select,#companionForm textarea,#chargeForm input,#composeForm select,#composeForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
-#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus,#companionForm select:focus,#companionForm textarea:focus,#chargeForm input:focus,#composeForm select:focus,#composeForm textarea:focus{border-color:var(--gold)}
+.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label,#chargeForm label,#composeForm label,#supportForm label,#notifyForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+#applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input,#companionForm select,#companionForm textarea,#chargeForm input,#composeForm select,#composeForm textarea,#supportForm input,#supportForm select,#supportForm textarea,#notifyForm select,#notifyForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
+#applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus,#companionForm select:focus,#companionForm textarea:focus,#chargeForm input:focus,#composeForm select:focus,#composeForm textarea:focus,#supportForm input:focus,#supportForm select:focus,#supportForm textarea:focus,#notifyForm select:focus,#notifyForm textarea:focus{border-color:var(--gold)}
 .auth-error{color:#b23b3b;font-size:13px;min-height:18px;margin:10px 0 0}
-#applyForm .primary,#profileForm .primary,#passwordForm .ghost,#chargeForm .primary,#composeForm .primary{margin-top:18px}
+#applyForm .primary,#profileForm .primary,#passwordForm .ghost,#chargeForm .primary,#composeForm .primary,#supportForm .primary,#notifyForm .primary{margin-top:18px}
 .full{width:100%}
 
 /* companion / requests */
@@ -172,13 +172,27 @@ dialog h2{margin:16px 0 6px;font-size:22px}
 .request-card .req-meta{font-size:12px;color:#9a9a8f;margin-bottom:10px}
 .req-status{display:inline-block;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;margin-left:6px}
 .req-status.pending{background:#f1ece0;color:#8a7a4a}
-.req-status.accepted,.req-status.approved{background:#e2ede4;color:#2f6b45}
+.req-status.accepted,.req-status.approved,.req-status.resolved{background:#e2ede4;color:#2f6b45}
 .req-status.declined,.req-status.rejected{background:#f3e2e2;color:#a13c3c}
 .req-status.cancelled{background:#ece9e3;color:#7a7669}
+.req-status.in_progress{background:#e6edf3;color:#3a5f80}
 .request-card .req-actions{display:flex;gap:8px;margin-top:8px}
 .request-card .req-actions button{border:0;border-radius:9px;padding:9px 14px;font-weight:700;font-size:12.5px}
 .request-card .accept-btn{background:var(--forest);color:var(--gold-light)}
 .request-card .decline-btn{background:#efe4e4;color:#a13c3c}
+
+/* avatars / 인증 배지 / 추천 태그 */
+.avatar{border-radius:50%;object-fit:cover;flex-shrink:0}
+.avatar-fallback{display:inline-flex;align-items:center;justify-content:center;background:#f1ece0;color:var(--gold);font-weight:700;flex-shrink:0}
+.verify-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2ede4;color:#2f6b45;margin:0 5px 5px 0}
+.verify-badge.pending{background:#f1ece0;color:#9a9488}
+.verify-badge-row{margin:10px 0 4px}
+.recommend-tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#f1ece0;color:var(--gold);margin:0 5px 5px 0}
+.hint-row{display:flex;gap:12px;align-items:flex-start}
+.hint-row p{margin:2px 0 0}
+.hint-body{flex:1;min-width:0}
+.profile-photo-row{display:flex;align-items:center;gap:14px;margin-top:16px}
+#profilePhotoPreview .avatar,#profilePhotoPreview .avatar-fallback{font-size:22px}
 
 /* conversation list */
 .conversation-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;text-align:left;width:100%;background:#fff}
@@ -191,7 +205,7 @@ dialog h2{margin:16px 0 6px;font-size:22px}
 
 /* chat dialog */
 .chat-dialog{width:min(560px,calc(100% - 30px));display:flex;flex-direction:column;padding:24px}
-.chat-header{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.chat-header{display:flex;align-items:center;gap:10px;padding-bottom:12px;padding-right:34px;border-bottom:1px solid var(--line);margin-bottom:6px}
 .chat-header h2{margin:0;font-size:17px;flex:1}
 .chat-call-btns{display:flex;gap:6px}
 .chat-icon-btn{border:1px solid var(--line);background:#fff;border-radius:11px;width:38px;height:38px;font-size:16px;flex-shrink:0}
@@ -203,8 +217,11 @@ dialog h2{margin:16px 0 6px;font-size:22px}
 .chat-bubble .chat-time{display:block;font-size:10px;opacity:.6;margin-top:4px}
 .chat-bubble img{display:block;max-width:100%;border-radius:10px;margin-top:2px}
 .chat-bubble .chat-file-link{display:flex;align-items:center;gap:6px;color:inherit;text-decoration:underline;font-size:13px}
-.chat-bubble .chat-call-link{display:inline-block;margin-top:6px;padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.18);color:inherit;text-decoration:none;font-weight:700;font-size:12.5px}
+.chat-bubble .chat-call-link{display:inline-block;margin-top:6px;padding:7px 12px;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:inherit;text-decoration:none;font-weight:700;font-size:12.5px}
 .chat-bubble.theirs .chat-call-link{background:var(--forest);color:var(--gold-light)}
+.call-cost-hint{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.call-frame{width:100%;height:420px;border-radius:14px;overflow:hidden;background:#111;margin:6px 0}
+.call-frame iframe{width:100%;height:100%;border:0}
 .chat-input-row{display:flex;gap:6px;align-items:flex-end;position:relative;margin-top:8px}
 .chat-input-row textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:14px;max-height:90px;outline:none}
 .chat-input-row textarea:focus{border-color:var(--gold)}

@@ -137,6 +137,37 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id, created_at);
+
+  -- 고객센터 문의. category: 'complaint'(클레임/불만) | 'refund'(환불 요청) | 'report'(회원 신고) | 'other'(기타)
+  -- target_user_id는 'report' 신고 대상, coin_charge_id는 'refund'가 참조하는 충전 내역(선택).
+  CREATE TABLE IF NOT EXISTS support_tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    category TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    target_user_id INTEGER REFERENCES users(id),
+    coin_charge_id INTEGER REFERENCES coin_charges(id),
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_note TEXT,
+    refund_coins INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    processed_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_tickets_user ON support_tickets(user_id, created_at);
+
+  -- 본인 인증(신분증 확인) 신청. document_url은 관리자와 본인만 열람 가능한 비공개 경로.
+  -- 승인되면 users.verified_identity_at이 채워지고, 반려되면 사유와 함께 재신청할 수 있다.
+  CREATE TABLE IF NOT EXISTS identity_verifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    document_url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    processed_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_identity_verifications_user ON identity_verifications(user_id, created_at);
 `);
 
 // CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
@@ -151,6 +182,12 @@ ensureColumn('messages', 'attachment_type', 'TEXT');
 ensureColumn('messages', 'attachment_url', 'TEXT');
 ensureColumn('messages', 'attachment_name', 'TEXT');
 ensureColumn('messages', 'read_at', 'TEXT');
+ensureColumn('users', 'suspended_at', 'TEXT');
+ensureColumn('users', 'suspended_reason', 'TEXT');
+ensureColumn('users', 'photo_url', 'TEXT');
+ensureColumn('users', 'verified_identity_at', 'TEXT');
+ensureColumn('users', 'verified_employment_at', 'TEXT');
+ensureColumn('users', 'verified_golf_at', 'TEXT');
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(recipient_id, read_at);`);
 
