@@ -16,6 +16,7 @@ router.use(requireAuth);
 
 const MESSAGE_COST = 500; // 메시지 1건당 차감되는 코인 (텍스트/사진/파일/통화요청 모두 동일)
 const MAX_INBOX_MESSAGES = 100; // 회원 1인당 받은 메시지함 최대 보관 개수
+const MAX_BODY_LENGTH = 200; // 메시지(사진/파일 설명 포함) 최대 글자 수
 
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'data', 'uploads');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -153,6 +154,9 @@ router.post('/', sendLimiter, (req, res, next) => {
   }
   if (kind === 'text' && !body) {
     return res.status(400).json({ error: '메시지 내용을 입력해주세요' });
+  }
+  if (body.length > MAX_BODY_LENGTH) {
+    return res.status(400).json({ error: `메시지는 ${MAX_BODY_LENGTH}자 이하로 입력해주세요` });
   }
 
   let attachmentType = null;

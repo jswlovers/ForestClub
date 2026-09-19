@@ -425,10 +425,11 @@
       <button type="button" class="chat-icon-btn" id="emojiBtn" title="이모티콘">😊</button>
       <button type="button" class="chat-icon-btn" id="attachBtn" title="사진/파일 첨부">📎</button>
       <input type="file" id="chatFileInput" class="hidden" accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip">
-      <textarea id="chatInput" rows="1" placeholder="메시지 입력 (500코인)"></textarea>
+      <textarea id="chatInput" rows="1" maxlength="200" placeholder="메시지 입력 (500코인)"></textarea>
       <button class="primary" type="submit">전송</button>
       <div id="emojiPopover" class="emoji-popover hidden"></div>
     </form>
+    <p class="member-hint"><span id="chatCharCount">0/200</span></p>
     <p class="member-hint" id="chatAttachHint"></p>
   </dialog>
 

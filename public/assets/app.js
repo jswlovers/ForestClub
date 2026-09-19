@@ -638,6 +638,9 @@ const chatForm=document.querySelector('#chatForm'),chatInput=document.querySelec
 const chatPartnerName=document.querySelector('#chatPartnerName');
 const chatFileInput=document.querySelector('#chatFileInput'),chatAttachHint=document.querySelector('#chatAttachHint');
 const emojiBtn=document.querySelector('#emojiBtn'),emojiPopover=document.querySelector('#emojiPopover');
+const chatCharCount=document.querySelector('#chatCharCount');
+const MAX_MESSAGE_LENGTH=200;
+chatInput.addEventListener('input',()=>{chatCharCount.textContent=`${chatInput.value.length}/${MAX_MESSAGE_LENGTH}`});
 
 let currentChatPartnerId=null;
 let pendingAttachment=null;
@@ -709,7 +712,7 @@ async function openChat(userId,name){
   currentChatPartnerId=userId;
   chatPartnerName.textContent=name;
   chatError.textContent='';
-  chatInput.value='';pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
+  chatInput.value='';chatCharCount.textContent=`0/${MAX_MESSAGE_LENGTH}`;pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
   emojiPopover.classList.add('hidden');
   chatThread.innerHTML='<p class="request-empty">불러오는 중...</p>';
   lastThreadMessageId=-1;
@@ -747,6 +750,7 @@ chatForm.onsubmit=async e=>{
   e.preventDefault();
   const body=chatInput.value.trim();
   if(!body&&!pendingAttachment){chatError.textContent='메시지를 입력하거나 파일을 첨부해주세요';return}
+  if(body.length>MAX_MESSAGE_LENGTH){chatError.textContent=`메시지는 ${MAX_MESSAGE_LENGTH}자 이하로 입력해주세요`;return}
   chatError.textContent='';
   try{
     let res;
@@ -759,7 +763,7 @@ chatForm.onsubmit=async e=>{
     }else{
       res=await api('/api/messages',{method:'POST',body:{recipientUserId:currentChatPartnerId,body}});
     }
-    chatInput.value='';pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
+    chatInput.value='';chatCharCount.textContent=`0/${MAX_MESSAGE_LENGTH}`;pendingAttachment=null;chatAttachHint.textContent='';chatFileInput.value='';
     refreshCoinBadge();
     await loadChatThread(true);
   }catch(err){chatError.textContent=err.message}
@@ -881,7 +885,8 @@ emojiBtn.onclick=()=>emojiPopover.classList.toggle('hidden');
 emojiPopover.addEventListener('click',e=>{
   const btn=e.target.closest('button');
   if(!btn) return;
-  chatInput.value+=btn.textContent;
+  chatInput.value=(chatInput.value+btn.textContent).slice(0,MAX_MESSAGE_LENGTH);
+  chatCharCount.textContent=`${chatInput.value.length}/${MAX_MESSAGE_LENGTH}`;
   chatInput.focus();
 });
 document.addEventListener('click',e=>{
