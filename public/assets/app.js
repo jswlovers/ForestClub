@@ -380,6 +380,7 @@ function openProfile(){
   document.querySelector('#profileGolf').value=currentUser.golfExperience||'';
   document.querySelector('#profileInterest').value=currentUser.interest||'';
   document.querySelector('#profileIntro').value=currentUser.intro||'';
+  document.querySelector('#profileMarketing').checked=!!currentUser.marketingOptIn;
   renderProfilePhotoAndBadges();
   profileDialog.showModal();
   loadIdentitySection();
@@ -460,6 +461,7 @@ profileForm.onsubmit=async e=>{
     golfExperience:document.querySelector('#profileGolf').value,
     interest:document.querySelector('#profileInterest').value,
     intro:document.querySelector('#profileIntro').value.trim(),
+    marketingOptIn:document.querySelector('#profileMarketing').checked,
   };
   try{
     currentUser=await api('/api/auth/profile',{method:'PATCH',body});

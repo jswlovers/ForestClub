@@ -44,6 +44,7 @@
         <button class="admin-tab" data-tab="coincharges">코인 충전 승인</button>
         <button class="admin-tab" data-tab="coinledger">코인 원장</button>
         <button class="admin-tab" data-tab="notify">안내 메시지 발송</button>
+        <button class="admin-tab" data-tab="kakao">카카오톡 발송</button>
         <button class="admin-tab" data-tab="notifications">알림 발송 로그</button>
       </div>
 
@@ -106,6 +107,41 @@
           <p class="auth-error" id="notifyError"></p>
           <button class="primary" type="submit">발송하기</button>
         </form>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-kakao">
+        <div class="panel-head"><h2>카카오톡 발송</h2><span class="panel-count" id="kakaoCount"></span></div>
+        <div class="kakao-status" id="kakaoStatus"></div>
+        <form id="kakaoForm">
+          <label>메시지 종류
+            <select id="kakaoType">
+              <option value="alimtalk">알림톡 — 정보성 안내 (결제 확인, 일정 변경 등)</option>
+              <option value="friendtalk">친구톡 — 자유 문구 광고성 소식 (수신 동의 회원만)</option>
+            </select>
+          </label>
+          <p class="kakao-hint" id="kakaoTypeHint"></p>
+          <label>받는 대상
+            <select id="kakaoAudience">
+              <option value="all">전체 회원</option>
+              <option value="approved">멤버십 승인 회원</option>
+              <option value="verified">본인 인증 완료 회원</option>
+              <option value="interest_golf">골프 관심 회원</option>
+              <option value="interest_travel">여행 관심 회원</option>
+              <option value="user">특정 회원 1명</option>
+            </select>
+          </label>
+          <label id="kakaoUserField" class="hidden">회원 선택<select id="kakaoUser"></select></label>
+          <label>메시지 내용<textarea id="kakaoMessage" rows="6" maxlength="900" placeholder="보낼 내용을 입력하세요"></textarea></label>
+          <p class="kakao-hint"><span id="kakaoCharCount">0/900</span></p>
+          <div class="kakao-preview hidden" id="kakaoPreview"></div>
+          <p class="auth-error" id="kakaoError"></p>
+          <div class="form-actions">
+            <button type="button" class="ghost" id="kakaoPreviewBtn">대상·미리보기 확인</button>
+            <button type="submit" class="primary" id="kakaoSendBtn">발송하기</button>
+          </div>
+        </form>
+        <div class="panel-head" style="margin-top:36px"><h2>발송 이력</h2></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>일시</th><th>종류</th><th>대상</th><th>메시지</th><th>대상 인원</th><th>발송됨</th><th>모의발송</th><th>실패</th><th>동의 없어 제외</th><th>발송자</th></tr></thead><tbody id="kakaoCampaignsBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-notifications">

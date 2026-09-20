@@ -32,3 +32,17 @@
   .admin-main{padding:24px 16px 80px}
   .admin-table-wrap{overflow-x:auto}
 }
+
+/* 카카오톡 발송 */
+#kakaoForm{max-width:560px}
+#kakaoForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+#kakaoForm select,#kakaoForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);background:#fff}
+#kakaoForm textarea{resize:vertical}
+#kakaoForm select:focus,#kakaoForm textarea:focus{border-color:var(--gold)}
+#kakaoForm .form-actions{display:flex;gap:10px;margin-top:18px}
+#kakaoForm .form-actions button{width:auto;padding:12px 22px}
+.kakao-status{display:grid;gap:6px;margin:0 0 18px;padding:14px 16px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:13px;line-height:1.6}
+.kakao-status .warn{color:#a13c3c;font-weight:700}
+.kakao-status .ok{color:#2f6b45;font-weight:700}
+.kakao-preview{margin:14px 0 0;padding:12px 14px;border-radius:11px;background:#f1ece0;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.kakao-hint{font-size:12.5px;color:var(--muted);margin:6px 0 0;line-height:1.6}

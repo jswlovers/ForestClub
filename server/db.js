@@ -168,6 +168,24 @@ db.exec(`
     processed_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_identity_verifications_user ON identity_verifications(user_id, created_at);
+
+  -- 관리자가 카카오톡으로 보낸 단체/개별 메시지 발송 이력.
+  -- type: 'alimtalk'(정보성, 승인된 템플릿) | 'friendtalk'(친구톡, 광고성이라 수신 동의 회원에게만)
+  -- audience: 'all' | 'user' | 'interest_golf' | 'interest_travel' | 'approved' | 'verified'
+  CREATE TABLE IF NOT EXISTS kakao_campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_id INTEGER NOT NULL REFERENCES users(id),
+    type TEXT NOT NULL,
+    audience TEXT NOT NULL,
+    target_user_id INTEGER REFERENCES users(id),
+    message TEXT NOT NULL,
+    total INTEGER NOT NULL DEFAULT 0,
+    sent INTEGER NOT NULL DEFAULT 0,
+    mocked INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    skipped_no_consent INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
@@ -188,6 +206,9 @@ ensureColumn('users', 'photo_url', 'TEXT');
 ensureColumn('users', 'verified_identity_at', 'TEXT');
 ensureColumn('users', 'verified_employment_at', 'TEXT');
 ensureColumn('users', 'verified_golf_at', 'TEXT');
+// 광고성 정보(카카오톡 친구톡·문자) 수신 동의 일시. NULL이면 미동의라 광고성 메시지를 보내면 안 된다.
+ensureColumn('users', 'marketing_opt_in_at', 'TEXT');
+ensureColumn('notifications', 'campaign_id', 'INTEGER');
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(recipient_id, read_at);`);
 

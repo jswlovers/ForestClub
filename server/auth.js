@@ -28,7 +28,8 @@ const getSession = db.prepare(
   `SELECT sessions.token, sessions.expires_at,
           users.id, users.name, users.email, users.phone, users.role, users.suspended_at,
           users.age_group, users.region, users.job, users.golf_experience, users.interest, users.intro,
-          users.photo_url, users.verified_identity_at, users.verified_employment_at, users.verified_golf_at
+          users.photo_url, users.verified_identity_at, users.verified_employment_at, users.verified_golf_at,
+          users.marketing_opt_in_at
    FROM sessions JOIN users ON users.id = sessions.user_id
    WHERE sessions.token = ?`
 );
@@ -70,6 +71,7 @@ function currentUser(req) {
     ageGroup: row.age_group, region: row.region, job: row.job,
     golfExperience: row.golf_experience, interest: row.interest, intro: row.intro,
     photoUrl: row.photo_url,
+    marketingOptIn: !!row.marketing_opt_in_at,
     verified: {
       identity: !!row.verified_identity_at,
       employment: !!row.verified_employment_at,

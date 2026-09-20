@@ -68,7 +68,7 @@ document.querySelectorAll('.admin-tab').forEach(t=>t.onclick=()=>{
 });
 
 async function loadAll(){
-  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadTickets(),loadCoinCharges(),loadCoinLedger(),loadNotifications()]);
+  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadTickets(),loadCoinCharges(),loadCoinLedger(),loadNotifications(),loadKakao()]);
 }
 
 const REPORT_WARN_THRESHOLD=3,REPORT_SUSPEND_THRESHOLD=5;
@@ -100,7 +100,9 @@ async function loadUsers(){
 
   const notifyUser=document.querySelector('#notifyUser');
   const withPhone=users.filter(u=>u.role!=='admin'&&u.phone);
-  notifyUser.innerHTML=withPhone.length?withPhone.map(u=>`<option value="${u.id}">${esc(u.name)} (${esc(u.email)})</option>`).join(''):'<option value="">연락처가 등록된 회원이 없어요</option>';
+  const userOptions=withPhone.length?withPhone.map(u=>`<option value="${u.id}">${esc(u.name)} (${esc(u.email)})</option>`).join(''):'<option value="">연락처가 등록된 회원이 없어요</option>';
+  notifyUser.innerHTML=userOptions;
+  document.querySelector('#kakaoUser').innerHTML=userOptions;
 }
 
 document.querySelector('#usersBody').addEventListener('click',async e=>{
@@ -326,6 +328,93 @@ notifyForm.onsubmit=async e=>{
     document.querySelector('#notifyMessage').value='';
     loadNotifications();
   }catch(err){notifyError.textContent=err.message}
+};
+
+/* ── 카카오톡 발송 ─────────────────────────────────────────── */
+const kakaoForm=document.querySelector('#kakaoForm'),kakaoError=document.querySelector('#kakaoError');
+const kakaoType=document.querySelector('#kakaoType'),kakaoAudience=document.querySelector('#kakaoAudience');
+const kakaoMessage=document.querySelector('#kakaoMessage'),kakaoPreview=document.querySelector('#kakaoPreview');
+const KAKAO_TYPE_LABEL={alimtalk:'알림톡',friendtalk:'친구톡(광고)'};
+const KAKAO_AUDIENCE_LABEL={all:'전체 회원',approved:'멤버십 승인 회원',verified:'본인 인증 완료 회원',interest_golf:'골프 관심 회원',interest_travel:'여행 관심 회원',user:'특정 회원'};
+const KAKAO_TYPE_HINT={
+  alimtalk:'결제 확인, 일정 변경처럼 회원이 알아야 하는 정보성 안내에만 쓰세요. 홍보·이벤트 내용은 넣으면 안 돼요. 승인된 알림톡 템플릿이 필요하고, 수신 동의 없이도 발송돼요.',
+  friendtalk:'이벤트, 신규 모임 소식 같은 광고성 내용에 쓰세요. 광고 수신에 동의하고 카카오 채널을 친구 추가한 회원에게만 도달하며, "(광고)" 표기와 무료수신거부 문구가 자동으로 붙어요. 오후 8시 50분~오전 8시에는 발송할 수 없어요.',
+};
+let kakaoStatus=null;
+
+function kakaoBody(){
+  const body={type:kakaoType.value,audience:kakaoAudience.value,message:kakaoMessage.value.trim()};
+  if(body.audience==='user') body.userId=Number(document.querySelector('#kakaoUser').value);
+  return body;
+}
+
+function renderKakaoStatus(){
+  const s=kakaoStatus;
+  const live=(on,label)=>`<div>${label}: ${on?'<span class="ok">실제 발송</span>':'<span class="warn">모의 발송 (카카오 키/채널/템플릿 미설정이라 실제로는 나가지 않아요)</span>'}</div>`;
+  document.querySelector('#kakaoStatus').innerHTML=
+    live(s.alimtalkLive,'알림톡')+live(s.friendtalkLive,'친구톡')+
+    `<div>연락처 등록 회원 ${s.reachable}명 중 광고 수신 동의 <strong>${s.consented}명</strong></div>`+
+    (s.nightBlocked?'<div class="warn">지금은 야간 시간대(20:50~08:00)라 친구톡을 보낼 수 없어요</div>':'');
+  document.querySelector('#kakaoTypeHint').textContent=KAKAO_TYPE_HINT[kakaoType.value];
+  document.querySelector('#kakaoCharCount').textContent=`${kakaoMessage.value.length}/${s.maxMessageLength}`;
+}
+
+async function loadKakao(){
+  const [status,campaigns]=await Promise.all([api('/api/admin/kakao/status'),api('/api/admin/kakao/campaigns')]);
+  kakaoStatus=status;
+  renderKakaoStatus();
+  document.querySelector('#kakaoCount').textContent=`발송 이력 ${campaigns.length}건`;
+  document.querySelector('#kakaoCampaignsBody').innerHTML=campaigns.map(c=>`
+    <tr><td>${fmt(c.created_at)}</td><td>${KAKAO_TYPE_LABEL[c.type]||esc(c.type)}</td>
+    <td>${esc(KAKAO_AUDIENCE_LABEL[c.audience]||c.audience)}${c.target_name?` (${esc(c.target_name)})`:''}</td>
+    <td>${esc(c.message)}</td><td>${c.total}</td><td>${c.sent}</td><td>${c.mocked}</td><td>${c.failed}</td><td>${c.skipped_no_consent}</td><td>${esc(c.admin_name)}</td></tr>
+  `).join('')||'<tr><td colspan="10">발송 이력이 없어요</td></tr>';
+}
+
+kakaoType.addEventListener('change',()=>{kakaoPreview.classList.add('hidden');if(kakaoStatus)renderKakaoStatus()});
+kakaoAudience.addEventListener('change',()=>{
+  document.querySelector('#kakaoUserField').classList.toggle('hidden',kakaoAudience.value!=='user');
+  kakaoPreview.classList.add('hidden');
+});
+kakaoMessage.addEventListener('input',()=>{if(kakaoStatus)renderKakaoStatus()});
+
+document.querySelector('#kakaoPreviewBtn').onclick=async()=>{
+  kakaoError.textContent='';
+  const {type,audience,userId,message}=kakaoBody();
+  if(audience==='user'&&!userId){kakaoError.textContent='보낼 회원을 선택해주세요';return}
+  try{
+    const qs=new URLSearchParams({type,audience});
+    if(userId) qs.set('userId',userId);
+    const p=await api(`/api/admin/kakao/preview?${qs}`);
+    const text=type==='friendtalk'?`${kakaoStatus.adPrefix}${message||'(내용)'}${kakaoStatus.adSuffix}`:(message||'(내용)');
+    kakaoPreview.textContent=
+      `받는 사람: ${p.count}명${p.sampleNames.length?` (${p.sampleNames.join(', ')}${p.count>p.sampleNames.length?' 외':''})`:''}`+
+      `${p.skippedNoConsent?`\n광고 수신 미동의로 제외: ${p.skippedNoConsent}명`:''}\n\n실제 발송 문구\n──────────\n${text}`;
+    kakaoPreview.classList.remove('hidden');
+  }catch(err){kakaoError.textContent=err.message}
+};
+
+kakaoForm.onsubmit=async e=>{
+  e.preventDefault();
+  kakaoError.textContent='';
+  const body=kakaoBody();
+  if(!body.message){kakaoError.textContent='보낼 메시지를 입력해주세요';return}
+  if(body.audience==='user'&&!body.userId){kakaoError.textContent='보낼 회원을 선택해주세요';return}
+  try{
+    const qs=new URLSearchParams({type:body.type,audience:body.audience});
+    if(body.userId) qs.set('userId',body.userId);
+    const p=await api(`/api/admin/kakao/preview?${qs}`);
+    if(!p.count){kakaoError.textContent=body.type==='friendtalk'&&p.skippedNoConsent?'광고 수신에 동의한 회원이 없어요':'연락처가 등록된 대상 회원이 없어요';return}
+    if(!window.confirm(`${KAKAO_TYPE_LABEL[body.type]}을(를) ${p.count}명에게 발송할까요?\n보낸 메시지는 취소할 수 없어요.`)) return;
+    const sendBtn=document.querySelector('#kakaoSendBtn');
+    sendBtn.disabled=true;
+    try{
+      const r=await api('/api/admin/kakao/send',{method:'POST',body});
+      showToast(`발송 완료: ${r.total}명 중 ${r.sent?`성공 ${r.sent}`:`모의 ${r.mocked}`}${r.failed?`, 실패 ${r.failed}`:''}`);
+      kakaoMessage.value='';kakaoPreview.classList.add('hidden');
+      loadKakao();loadNotifications();
+    }finally{sendBtn.disabled=false}
+  }catch(err){kakaoError.textContent=err.message}
 };
 
 async function loadCoinCharges(){

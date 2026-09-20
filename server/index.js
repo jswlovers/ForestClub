@@ -17,6 +17,7 @@ const callRoutes = require('./routes/calls');
 const ticketRoutes = require('./routes/tickets');
 const identityRoutes = require('./routes/identity');
 const adminRoutes = require('./routes/admin');
+const kakaoAdminRoutes = require('./routes/kakao-admin');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@forestclub.kr';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234!';
@@ -54,6 +55,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/identity', identityRoutes);
+app.use('/api/admin/kakao', kakaoAdminRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));

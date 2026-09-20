@@ -19,6 +19,9 @@ const updateProfile = db.prepare(`
   UPDATE users SET phone = ?, age_group = ?, region = ?, job = ?, golf_experience = ?, interest = ?, intro = ?
   WHERE id = ?
 `);
+// 동의 일시는 처음 동의한 시각을 유지한다(이미 동의한 상태에서 다시 저장해도 덮어쓰지 않음).
+const setMarketingOptIn = db.prepare(`UPDATE users SET marketing_opt_in_at = COALESCE(marketing_opt_in_at, datetime('now')) WHERE id = ?`);
+const clearMarketingOptIn = db.prepare('UPDATE users SET marketing_opt_in_at = NULL WHERE id = ?');
 const updatePasswordHash = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?');
 const updatePhoto = db.prepare('UPDATE users SET photo_url = ? WHERE id = ?');
 
@@ -127,6 +130,10 @@ router.patch('/profile', requireAuth, (req, res) => {
     String(body.intro || '').trim() || null,
     req.user.id
   );
+  // 수신 동의는 값이 실제로 전달됐을 때만 바꾼다(다른 프로필 저장 요청이 동의 상태를 지우지 않도록).
+  if (typeof body.marketingOptIn === 'boolean') {
+    (body.marketingOptIn ? setMarketingOptIn : clearMarketingOptIn).run(req.user.id);
+  }
   res.json(currentUser(req));
 });
 
