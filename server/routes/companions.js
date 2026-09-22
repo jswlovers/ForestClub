@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireApproved } = require('../auth');
 const { notifyBySms } = require('../services/notify');
 const { findEventByName } = require('../events-catalog');
 const { rateLimit } = require('../rate-limit');
@@ -11,14 +11,17 @@ router.use(requireAuth);
 const requestLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 30, message: '동행 신청이 너무 많아요. 잠시 후 다시 시도해주세요' });
 
 // 다른 회원에게 특정 모임(라운딩/여행)의 동행을 신청할 수 있도록, 신청 후보로 보여줄 회원 목록.
-// 프로필은 회원이 "내 프로필"에서 직접 입력/수정한 값을 그대로 노출한다.
+// 실명(name)은 다른 회원에게 절대 노출하지 않는다 — 공개되는 항목은 닉네임/나이/지역/직업 등으로
+// 한정한다(이용약관 제23조4항, 개인정보처리방침 제4조3항). 나이는 생년월일 대신 계산값만 내려준다.
 const listMembers = db.prepare(`
-  SELECT id, name, age_group, region, interest, golf_experience, intro, photo_url,
+  SELECT id, nickname,
+         CAST((strftime('%Y%m%d', 'now') - strftime('%Y%m%d', birth_date)) / 10000 AS INTEGER) AS age,
+         gender, age_group, region, interest, golf_experience, intro, photo_url,
          verified_identity_at IS NOT NULL AS verified_identity,
          verified_employment_at IS NOT NULL AS verified_employment,
          verified_golf_at IS NOT NULL AS verified_golf
   FROM users
-  WHERE role != 'admin' AND id != ?
+  WHERE role != 'admin' AND id != ? AND withdrawn_at IS NULL AND status = 'approved'
   ORDER BY created_at DESC
 `);
 
@@ -29,9 +32,10 @@ const insertRequest = db.prepare(`
   VALUES (?, ?, ?, ?)
 `);
 
+// 신청 목록에서도 실명이 아니라 닉네임만 내려준다.
 const incomingQuery = db.prepare(`
   SELECT cr.id, cr.event_name, cr.message, cr.status, cr.created_at,
-         u.id AS requester_id, u.name AS requester_name
+         u.id AS requester_id, u.nickname AS requester_nickname
   FROM companion_requests cr
   JOIN users u ON u.id = cr.requester_id
   WHERE cr.target_id = ?
@@ -40,7 +44,7 @@ const incomingQuery = db.prepare(`
 
 const outgoingQuery = db.prepare(`
   SELECT cr.id, cr.event_name, cr.message, cr.status, cr.created_at,
-         u.id AS target_id, u.name AS target_name
+         u.id AS target_id, u.nickname AS target_nickname
   FROM companion_requests cr
   JOIN users u ON u.id = cr.target_id
   WHERE cr.requester_id = ?
@@ -54,7 +58,7 @@ router.get('/members', (req, res) => {
   res.json(listMembers.all(req.user.id));
 });
 
-router.post('/', requestLimiter, async (req, res) => {
+router.post('/', requestLimiter, requireApproved, async (req, res) => {
   const targetUserId = Number(req.body.targetUserId);
   const eventName = String(req.body.eventName || '').trim();
   const message = String(req.body.message || '').trim();
@@ -65,17 +69,17 @@ router.post('/', requestLimiter, async (req, res) => {
     return res.status(400).json({ error: '신청 대상 회원을 확인해주세요' });
   }
   const target = getUserById.get(targetUserId);
-  if (!target || target.role === 'admin') {
+  if (!target || target.role === 'admin' || target.withdrawn_at || target.status !== 'approved') {
     return res.status(404).json({ error: '대상 회원을 찾을 수 없어요' });
   }
 
   const info = insertRequest.run(req.user.id, targetUserId, event.name, message || null);
 
   if (target.phone) {
-    const text = `[포레스트클럽] ${req.user.name}님이 '${event.name}' 모임에 동행을 신청했습니다.${message ? ` (메시지: ${message})` : ''} 앱에서 확인해주세요.`;
+    const text = `[포레스트클럽] ${req.user.nickname}님이 '${event.name}' 모임에 동행을 신청했습니다.${message ? ` (메시지: ${message})` : ''} 앱에서 확인해주세요.`;
     notifyBySms(target.id, target.phone, text, {
       kind: 'companion_request',
-      variables: { requesterName: req.user.name, eventName: event.name },
+      variables: { requesterName: req.user.nickname, eventName: event.name },
     }).catch((err) => console.error('[notify] companion request sms failed', err));
   }
 
@@ -101,10 +105,10 @@ function respondToRequest(status, successText) {
 
     const requester = getUserById.get(request.requester_id);
     if (requester?.phone) {
-      const text = `[포레스트클럽] ${req.user.name}님이 '${request.event_name}' 동행 신청을 ${successText}.`;
+      const text = `[포레스트클럽] ${req.user.nickname}님이 '${request.event_name}' 동행 신청을 ${successText}.`;
       notifyBySms(requester.id, requester.phone, text, {
         kind: 'companion_response',
-        variables: { responderName: req.user.name, eventName: request.event_name, result: successText },
+        variables: { responderName: req.user.nickname, eventName: request.event_name, result: successText },
       }).catch((err) => console.error('[notify] companion response sms failed', err));
     }
 

@@ -1,13 +1,20 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../auth');
-const { getBalance, getUserLedger, creditCoins } = require('../services/coins');
+const { requireAuth, requireApproved } = require('../auth');
+const { getBalance, getBalanceBreakdown, getUserLedger, creditCoins, creditFreeCoins } = require('../services/coins');
 const { confirmTossPayment } = require('../services/payment');
 const { notifyBySms } = require('../services/notify');
 const { rateLimit } = require('../rate-limit');
 
 const router = express.Router();
 router.use(requireAuth);
+
+const getAppSetting = db.prepare(`SELECT value FROM app_settings WHERE key = ?`);
+const getCheckinToday = db.prepare(`
+  SELECT id FROM coin_ledger
+  WHERE user_id = ? AND type = 'daily_checkin' AND direction = 'credit' AND date(created_at) = date('now')
+  LIMIT 1
+`);
 
 const COIN_PER_KRW = 1; // 1코인 = 1원
 const MIN_CHARGE_KRW = 1000;
@@ -28,14 +35,27 @@ const markChargeProcessed = db.prepare(`
 const chargeLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: '충전 요청이 너무 많아요. 잠시 후 다시 시도해주세요' });
 
 router.get('/balance', (req, res) => {
-  res.json({ coins: getBalance(req.user.id) });
+  const breakdown = getBalanceBreakdown(req.user.id);
+  res.json({ coins: breakdown.total, ...breakdown });
 });
 
 router.get('/ledger', (req, res) => {
   res.json(getUserLedger(req.user.id));
 });
 
-router.post('/charge-requests', chargeLimiter, (req, res) => {
+// 운영정책 "무료 코인 지급 사유" 표의 출석(일 1회) 항목. 관리자가 daily_checkin_coins를 정할 때까지는 0.
+router.post('/daily-checkin', requireApproved, (req, res) => {
+  if (getCheckinToday.get(req.user.id)) {
+    return res.status(409).json({ error: '오늘은 이미 출석 코인을 받았어요' });
+  }
+  const amount = Number(getAppSetting.get('daily_checkin_coins')?.value || 0);
+  if (amount > 0) {
+    creditFreeCoins(req.user.id, amount, 'daily_checkin', '출석 무료 코인');
+  }
+  res.json({ ok: true, granted: amount, coins: getBalance(req.user.id) });
+});
+
+router.post('/charge-requests', chargeLimiter, requireApproved, (req, res) => {
   const amountKrw = Math.floor(Number(req.body.amountKrw));
   const provider = req.body.provider === 'toss' ? 'toss' : 'manual';
   if (!Number.isFinite(amountKrw) || amountKrw < MIN_CHARGE_KRW) {

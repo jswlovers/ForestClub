@@ -18,6 +18,7 @@ const ticketRoutes = require('./routes/tickets');
 const identityRoutes = require('./routes/identity');
 const adminRoutes = require('./routes/admin');
 const kakaoAdminRoutes = require('./routes/kakao-admin');
+const legalRoutes = require('./routes/legal');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@forestclub.kr';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234!';
@@ -57,8 +58,15 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/identity', identityRoutes);
 app.use('/api/admin/kakao', kakaoAdminRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/legal', legalRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// 개인정보처리방침 제8조4항: 메시지는 발송일로부터 1년이 지나면 파기한다.
+// 별도 작업 스케줄러가 없는 현재 구조에 맞춰, 기동 시 1회 + 이후 24시간마다 정리한다.
+const { pruneOldMessages } = require('./routes/messages');
+pruneOldMessages();
+setInterval(pruneOldMessages, 24 * 60 * 60 * 1000);
 
 app.use((err, req, res, next) => {
   console.error(err);

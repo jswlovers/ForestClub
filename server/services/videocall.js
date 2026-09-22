@@ -24,6 +24,9 @@ async function createCallRoom(type) {
           start_audio_off: false,
           enable_screenshare: true,
           exp: Math.round(Date.now() / 1000) + 60 * 60, // 1시간 뒤 자동 만료
+          // 의도적으로 녹음/녹화 관련 속성(enable_recording 등)을 절대 설정하지 않는다.
+          // 운영정책 제5장의2: "회사는 통화를 녹음·녹화하지 않는다"는 방침을 지키기 위해 서버가
+          // 방을 만들 때부터 녹화 옵션 자체를 켤 수 없게 하고, 관리자 화면에도 이를 켜는 기능을 두지 않는다.
         },
       }),
     });

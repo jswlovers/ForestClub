@@ -78,6 +78,15 @@ loadEventCapacity();
 document.querySelector('#moreGolf').onclick=()=>showToast('이번 시즌 골프 모임 일정 6건을 모두 불러왔어요');
 document.querySelector('#moreTravel').onclick=()=>showToast('이번 시즌 여행 프로그램 5건을 모두 불러왔어요');
 
+/* ── 푸터: 전자상거래법 표시 의무사항(사업자 정보) ────────── */
+(async()=>{
+  try{
+    const info=await api('/api/legal/business-info');
+    document.querySelector('#footerBusinessInfo').textContent=
+      `${info.name} · 대표 ${info.ceo} · ${info.address} · 사업자등록번호 ${info.regNo} · 통신판매업신고 ${info.ecommerceNo} · ${info.phone} · ${info.email}`;
+  }catch{}
+})();
+
 document.querySelectorAll('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
 
 /* ── 멤버십 지원서 ─────────────────────────────────────── */
@@ -131,13 +140,18 @@ let currentUser=null;
 function renderAuth(){
   const loggedIn=!!currentUser;
   if(currentUser){
-    authBtn.textContent=currentUser.name;authBtn.dataset.state='in';
+    authBtn.textContent=currentUser.nickname||currentUser.name;authBtn.dataset.state='in';
     adminBtn.classList.toggle('hidden',currentUser.role!=='admin');
     adminMobile.classList.toggle('hidden',currentUser.role!=='admin');
     authMobile.classList.add('hidden');
     logoutMobile.classList.remove('hidden');
     refreshCoinBadge();
     establishMessageBaseline();
+    if(currentUser.role!=='admin'&&currentUser.status==='pending'){
+      showToast('가입 심사가 진행 중이에요. 승인 후 쪽지·동행신청·코인 등을 이용할 수 있어요');
+    }else if(currentUser.role!=='admin'&&currentUser.status==='rejected'){
+      showToast(`가입 심사에서 승인되지 못했어요.${currentUser.rejectedReason?` (사유: ${currentUser.rejectedReason})`:''}`);
+    }
   }else{
     authBtn.textContent='로그인';authBtn.dataset.state='out';
     authMobile.classList.remove('hidden');authMobile.textContent='로그인';
@@ -157,25 +171,92 @@ async function refreshSession(){
 }
 refreshSession();
 
-function openAuthDialog(){loginError.textContent='';signupError.textContent='';loginForm.reset();signupForm.reset();mobileMenu.classList.remove('show');authDialog.showModal()}
+function openAuthDialog(){
+  loginError.textContent='';signupError.textContent='';loginForm.reset();signupForm.reset();
+  nicknameOk=false;signupNicknameHint.textContent='';signupNicknameHint.className='';
+  updateSignupSubmitState();
+  mobileMenu.classList.remove('show');authDialog.showModal();
+}
 authBtn.onclick=()=>{if(authBtn.dataset.state==='in'){authMenu.classList.toggle('show')}else{openAuthDialog()}};
 authMobile.onclick=openAuthDialog;
 
 document.querySelectorAll('.auth-tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.auth-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');const isLogin=t.dataset.tab==='login';loginForm.classList.toggle('hidden',!isLogin);signupForm.classList.toggle('hidden',isLogin)});
 
+/* 회원가입: 닉네임 실시간 중복확인 */
+const signupNickname=document.querySelector('#signupNickname'),signupNicknameHint=document.querySelector('#signupNicknameHint');
+let nicknameCheckTimer=null,nicknameOk=false;
+signupNickname.addEventListener('input',()=>{
+  nicknameOk=false;
+  clearTimeout(nicknameCheckTimer);
+  const value=signupNickname.value.trim();
+  if(!value){signupNicknameHint.textContent='';signupNicknameHint.className='';return}
+  signupNicknameHint.textContent='확인 중...';signupNicknameHint.className='';
+  nicknameCheckTimer=setTimeout(async()=>{
+    try{
+      const r=await api(`/api/auth/nickname-available?nickname=${encodeURIComponent(value)}`);
+      nicknameOk=r.available;
+      signupNicknameHint.textContent=r.available?'사용할 수 있는 닉네임이에요':(r.reason||'이미 사용 중인 닉네임이에요');
+      signupNicknameHint.className=r.available?'ok':'bad';
+    }catch{signupNicknameHint.textContent='';signupNicknameHint.className=''}
+  },400);
+});
+
+/* 회원가입: 필수 동의(만 19세/이용약관/개인정보) 3개를 모두 체크해야 제출 버튼이 열린다 —
+   광고성 정보 동의(선택)는 조건에 넣지 않는다. */
+const signupSubmitBtn=document.querySelector('#signupSubmitBtn');
+const agreeAge19=document.querySelector('#agreeAge19'),agreeTerms=document.querySelector('#agreeTerms'),agreePrivacy=document.querySelector('#agreePrivacy');
+function updateSignupSubmitState(){
+  signupSubmitBtn.disabled=!(agreeAge19.checked&&agreeTerms.checked&&agreePrivacy.checked);
+}
+[agreeAge19,agreeTerms,agreePrivacy].forEach(el=>el.addEventListener('change',updateSignupSubmitState));
+
+// "법률상 배우자가 있음"을 고르면 그 자리에서 안내하고 가입을 막는다(이용약관 제5조5항).
+document.querySelectorAll('input[name="signupMarital"]').forEach(el=>el.addEventListener('change',()=>{
+  if(el.value==='married'&&el.checked){
+    signupError.textContent='포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있어요';
+  }else{
+    signupError.textContent='';
+  }
+}));
+
 signupForm.onsubmit=async e=>{
   e.preventDefault();
   const name=document.querySelector('#signupName').value.trim();
+  const nickname=signupNickname.value.trim();
   const email=document.querySelector('#signupEmail').value.trim();
   const phone=document.querySelector('#signupPhone').value.trim();
   const password=document.querySelector('#signupPassword').value;
+  const birthDate=document.querySelector('#signupBirthDate').value;
+  const gender=document.querySelector('#signupGender').value;
+  const maritalStatus=(document.querySelector('input[name="signupMarital"]:checked')||{}).value||'';
+
   if(!name||!email||password.length<8){signupError.textContent='이름, 이메일, 8자 이상 비밀번호를 확인해주세요';return}
+  if(!nicknameOk){signupError.textContent='닉네임 확인을 완료해주세요';return}
+  if(birthDate){
+    const age=calcAgeClient(birthDate);
+    if(age<19){signupError.textContent='만 19세 이상만 가입할 수 있어요';return}
+  }
+  if(maritalStatus==='married'){signupError.textContent='포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있어요';return}
+
   try{
-    currentUser=await api('/api/auth/signup',{method:'POST',body:{name,email,phone,password}});
+    currentUser=await api('/api/auth/signup',{method:'POST',body:{
+      name,nickname,email,phone,password,birthDate,gender,maritalStatus,
+      ageAgreed:agreeAge19.checked,termsAgreed:agreeTerms.checked,privacyAgreed:agreePrivacy.checked,
+      marketingAgreed:document.querySelector('#agreeMarketing').checked,
+    }});
     authDialog.close();renderAuth();
-    showToast(phone?`${name}님, 포레스트클럽 가입을 환영합니다. 환영 문자를 보내드렸어요`:`${name}님, 포레스트클럽 가입을 환영합니다`);
+    showToast(`${nickname}님, 가입 신청이 접수됐어요. 서류 심사와 인터뷰를 거쳐 결과를 안내드릴게요.`);
   }catch(err){signupError.textContent=err.message}
 };
+
+function calcAgeClient(birthDateStr){
+  const birth=new Date(`${birthDateStr}T00:00:00`);
+  const today=new Date();
+  let age=today.getFullYear()-birth.getFullYear();
+  const hadBirthday=today.getMonth()>birth.getMonth()||(today.getMonth()===birth.getMonth()&&today.getDate()>=birth.getDate());
+  if(!hadBirthday)age-=1;
+  return age;
+}
 
 loginForm.onsubmit=async e=>{
   e.preventDefault();
@@ -184,7 +265,7 @@ loginForm.onsubmit=async e=>{
   try{
     currentUser=await api('/api/auth/login',{method:'POST',body:{email,password}});
     authDialog.close();renderAuth();
-    showToast(`${currentUser.name}님, 환영합니다`);
+    showToast(`${currentUser.nickname||currentUser.name}님, 환영합니다`);
   }catch(err){loginError.textContent=err.message}
 };
 
@@ -258,7 +339,7 @@ document.querySelectorAll('.companion').forEach(b=>b.addEventListener('click',as
     if(!membersCache.length){
       companionTarget.innerHTML='<option value="">신청 가능한 회원이 아직 없어요</option>';
     }else{
-      companionTarget.innerHTML=membersCache.map(m=>`<option value="${m.id}">${matchScore(m)>0?'🎯 ':''}${esc(m.name)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join('');
+      companionTarget.innerHTML=membersCache.map(m=>`<option value="${m.id}">${matchScore(m)>0?'🎯 ':''}${esc(m.nickname)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join('');
       updateCompanionHint();
     }
   }catch(err){companionError.textContent=err.message}
@@ -283,7 +364,7 @@ function updateCompanionHint(){
   const introText=(parts.length?parts.join(' · ')+' — ':'')+(m.intro||'자기소개가 아직 없어요');
   companionTargetHint.innerHTML=`
     <div class="hint-row">
-      ${avatarHtml(m.photo_url,m.name,44)}
+      ${avatarHtml(m.photo_url,m.nickname,44)}
       <div class="hint-body">
         ${matchScore(m)>0?'<span class="recommend-tag">🎯 추천</span>':''}${verifyBadgesHtml(m)}
         <p>${esc(introText)}</p>
@@ -303,6 +384,64 @@ companionForm.onsubmit=async e=>{
   }catch(err){companionError.textContent=err.message}
 };
 
+/* ── 모임 참석 확정 (코인 보류) ───────────────────────────── */
+const attendanceDialog=document.querySelector('#attendanceDialog'),attendanceForm=document.querySelector('#attendanceForm');
+const attendanceError=document.querySelector('#attendanceError'),attendanceHoldAmount=document.querySelector('#attendanceHoldAmount');
+let attendanceEventName=null;
+
+document.querySelectorAll('.attend').forEach(b=>b.addEventListener('click',e=>{
+  if(!currentUser){mobileMenu.classList.remove('show');showToast('모임 참석 확정은 로그인 후 이용할 수 있어요');openAuthDialog();return}
+  if(currentUser.status!=='approved'){showToast('가입 심사 승인 후 참석을 확정할 수 있어요');return}
+  attendanceEventName=e.target.dataset.name;
+  attendanceError.textContent='';
+  attendanceForm.reset();
+  document.querySelector('#attendanceEventLabel').textContent=`'${attendanceEventName}' 모임에 참석을 확정해요.`;
+  attendanceHoldAmount.textContent=Number(e.target.dataset.hold||30000).toLocaleString();
+  attendanceDialog.showModal();
+}));
+
+attendanceForm.onsubmit=async e=>{
+  e.preventDefault();
+  const eventDate=document.querySelector('#attendanceDate').value;
+  if(!eventDate){attendanceError.textContent='참석할 날짜를 선택해주세요';return}
+  try{
+    await api(`/api/events/${encodeURIComponent(attendanceEventName)}/confirm-attendance`,{method:'POST',body:{eventDate}});
+    attendanceDialog.close();
+    showToast('참석을 확정했어요. 보류된 코인은 내 신청함 > 모임 참석에서 확인할 수 있어요');
+    refreshCoinBadge();
+  }catch(err){attendanceError.textContent=err.message}
+};
+
+const ATTENDANCE_STATUS_LABEL={confirmed:'참석 확정(보류중)',cancelled:'취소됨',attended:'참석 완료',no_show:'무단 불참'};
+
+async function loadMyAttendances(){
+  const attendanceList=document.querySelector('#attendanceList');
+  attendanceList.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  try{
+    const list=await api('/api/events/attendances/me');
+    attendanceList.innerHTML=list.length?list.map(a=>`
+      <div class="request-card" data-id="${a.id}">
+        <h4>${esc(a.event_name)}<span class="req-status ${a.status}">${ATTENDANCE_STATUS_LABEL[a.status]||a.status}</span></h4>
+        <p>참석 예정일: ${esc(a.event_date)} · 보류 코인: ${a.hold_coins.toLocaleString()}</p>
+        ${a.status==='cancelled'?`<p>해제 비율: ${a.released_pct}%</p>`:''}
+        ${a.penalty_krw?`<p>실제 위약금 청구: ${a.penalty_krw.toLocaleString()}원${a.penalty_note?` (${esc(a.penalty_note)})`:''}</p>`:''}
+        <div class="req-meta">${new Date(a.created_at).toLocaleString('ko-KR')}</div>
+        ${a.status==='confirmed'?`<div class="req-actions"><button class="decline-btn" data-action="cancel-attendance" data-id="${a.id}">참석 취소</button></div>`:''}
+      </div>`).join(''):'<p class="request-empty">아직 참석 확정한 모임이 없어요</p>';
+  }catch(err){attendanceList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+}
+
+document.querySelector('#attendanceList').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action="cancel-attendance"]');
+  if(!btn) return;
+  try{
+    await api(`/api/events/attendances/${btn.dataset.id}/cancel`,{method:'POST'});
+    showToast('참석을 취소했어요');
+    loadMyAttendances();
+    refreshCoinBadge();
+  }catch(err){showToast(err.message)}
+});
+
 /* ── 내 동행 신청함 ────────────────────────────────────── */
 const requestsDialog=document.querySelector('#requestsDialog');
 const incomingList=document.querySelector('#incomingList'),outgoingList=document.querySelector('#outgoingList');
@@ -312,9 +451,11 @@ requestsBtn.onclick=openRequests;requestsMobile.onclick=openRequests;
 
 document.querySelectorAll('.req-tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.req-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
-  const isIncoming=t.dataset.reqtab==='incoming';
-  incomingList.classList.toggle('hidden',!isIncoming);
-  outgoingList.classList.toggle('hidden',isIncoming);
+  const tab=t.dataset.reqtab;
+  incomingList.classList.toggle('hidden',tab!=='incoming');
+  outgoingList.classList.toggle('hidden',tab!=='outgoing');
+  document.querySelector('#attendanceList').classList.toggle('hidden',tab!=='attendance');
+  if(tab==='attendance') loadMyAttendances();
 });
 
 const STATUS_LABEL={pending:'대기중',accepted:'수락됨',declined:'거절됨',cancelled:'취소됨'};
@@ -326,7 +467,7 @@ async function loadRequests(){
     const [incoming,outgoing]=await Promise.all([api('/api/companions/incoming'),api('/api/companions/outgoing')]);
     incomingList.innerHTML=incoming.length?incoming.map(r=>`
       <div class="request-card" data-id="${r.id}">
-        <h4>${esc(r.requester_name)}님의 동행 신청<span class="req-status ${r.status}">${STATUS_LABEL[r.status]}</span></h4>
+        <h4>${esc(r.requester_nickname)}님의 동행 신청<span class="req-status ${r.status}">${STATUS_LABEL[r.status]}</span></h4>
         <p>모임: ${esc(r.event_name)}</p>
         ${r.message?`<p>메시지: ${esc(r.message)}</p>`:''}
         <div class="req-meta">${new Date(r.created_at).toLocaleString('ko-KR')}</div>
@@ -334,7 +475,7 @@ async function loadRequests(){
       </div>`).join(''):'<p class="request-empty">아직 받은 동행 신청이 없어요</p>';
     outgoingList.innerHTML=outgoing.length?outgoing.map(r=>`
       <div class="request-card" data-id="${r.id}">
-        <h4>${esc(r.target_name)}님에게 보낸 신청<span class="req-status ${r.status}">${STATUS_LABEL[r.status]}</span></h4>
+        <h4>${esc(r.target_nickname)}님에게 보낸 신청<span class="req-status ${r.status}">${STATUS_LABEL[r.status]}</span></h4>
         <p>모임: ${esc(r.event_name)}</p>
         ${r.message?`<p>메시지: ${esc(r.message)}</p>`:''}
         <div class="req-meta">${new Date(r.created_at).toLocaleString('ko-KR')}</div>
@@ -482,6 +623,24 @@ passwordForm.onsubmit=async e=>{
   }catch(err){passwordError.textContent=err.message}
 };
 
+/* ── 회원 탈퇴 ─────────────────────────────────────────── */
+const withdrawConfirmDialog=document.querySelector('#withdrawConfirmDialog'),withdrawError=document.querySelector('#withdrawError');
+document.querySelector('#withdrawBtn').onclick=()=>{
+  profileDialog.close();
+  withdrawError.textContent='';
+  withdrawConfirmDialog.showModal();
+};
+document.querySelector('#withdrawCancelBtn').onclick=()=>withdrawConfirmDialog.close();
+document.querySelector('#withdrawConfirmBtn').onclick=async()=>{
+  try{
+    await api('/api/auth/withdraw',{method:'POST'});
+    withdrawConfirmDialog.close();
+    currentUser=null;
+    renderAuth();
+    showToast('탈퇴 처리됐어요. 그동안 함께해주셔서 감사합니다');
+  }catch(err){withdrawError.textContent=err.message}
+};
+
 /* ── 내 지원 현황 ──────────────────────────────────────── */
 const myApplicationsDialog=document.querySelector('#myApplicationsDialog');
 const myApplicationsList=document.querySelector('#myApplicationsList');
@@ -511,15 +670,15 @@ async function loadMyApplications(){
 /* ── 코인 ──────────────────────────────────────────────── */
 const coinsDialog=document.querySelector('#coinsDialog'),chargeForm=document.querySelector('#chargeForm');
 const chargeError=document.querySelector('#chargeError'),chargeHistory=document.querySelector('#chargeHistory');
-const coinsBalanceEl=document.querySelector('#coinsBalance');
+const coinsAvailableEl=document.querySelector('#coinsAvailable'),coinsHeldEl=document.querySelector('#coinsHeld'),coinsHeldRow=document.querySelector('#coinsHeldRow');
 
 async function refreshCoinBadge(){
   try{
-    const {coins}=await api('/api/coins/balance');
-    coinBadge.textContent=`${coins.toLocaleString()} 코인`;
+    const breakdown=await api('/api/coins/balance');
+    coinBadge.textContent=`${breakdown.available.toLocaleString()} 코인`;
     coinBadge.classList.remove('hidden');
-    return coins;
-  }catch{coinBadge.classList.add('hidden');return 0}
+    return breakdown;
+  }catch{coinBadge.classList.add('hidden');return {coins:0,free:0,paid:0,total:0,held:0,available:0}}
 }
 coinBadge.onclick=()=>openCoins();
 
@@ -534,8 +693,10 @@ function openCoins(){
 coinsBtn.onclick=openCoins;coinsMobile.onclick=openCoins;
 
 async function loadCoinInfo(){
-  const coins=await refreshCoinBadge();
-  coinsBalanceEl.textContent=coins.toLocaleString();
+  const breakdown=await refreshCoinBadge();
+  coinsAvailableEl.textContent=breakdown.available.toLocaleString();
+  coinsHeldRow.classList.toggle('hidden',!breakdown.held);
+  coinsHeldEl.textContent=breakdown.held.toLocaleString();
   chargeHistory.innerHTML='<p class="request-empty">불러오는 중...</p>';
   try{
     const list=await api('/api/coins/charge-requests/me');
@@ -589,7 +750,7 @@ supportBtn.onclick=openSupport;supportMobile.onclick=openSupport;
 async function loadSupportOptions(){
   try{
     const members=await api('/api/tickets/target-members');
-    supportTarget.innerHTML=members.length?members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join(''):'<option value="">신고할 수 있는 회원이 없어요</option>';
+    supportTarget.innerHTML=members.length?members.map(m=>`<option value="${m.id}">${esc(m.nickname)}</option>`).join(''):'<option value="">신고할 수 있는 회원이 없어요</option>';
   }catch{supportTarget.innerHTML='<option value="">불러오지 못했어요</option>'}
   try{
     const charges=await api('/api/coins/charge-requests/me');
@@ -605,7 +766,7 @@ async function loadMyTickets(){
       <div class="request-card">
         <h4>${esc(TICKET_CATEGORY_LABEL[t.category]||t.category)} · ${esc(t.subject)}<span class="req-status ${t.status}">${TICKET_STATUS_LABEL[t.status]}</span></h4>
         <p>${esc(t.body)}</p>
-        ${t.target_name?`<p>신고 대상: ${esc(t.target_name)}</p>`:''}
+        ${t.target_nickname?`<p>신고 대상: ${esc(t.target_nickname)}</p>`:''}
         ${t.refund_coins?`<p>환불된 코인: ${t.refund_coins.toLocaleString()}코인</p>`:''}
         ${t.admin_note?`<p>운영진 메모: ${esc(t.admin_note)}</p>`:''}
         <div class="req-meta">${new Date(t.created_at).toLocaleString('ko-KR')}</div>
@@ -663,9 +824,9 @@ async function loadConversations(){
     const list=await api('/api/messages/conversations');
     conversationList.innerHTML=list.length?list.map(c=>`
       <button type="button" class="conversation-card" data-user-id="${c.userId}">
-        ${avatarHtml(c.photoUrl,c.name,40)}
+        ${avatarHtml(c.photoUrl,c.nickname,40)}
         <div class="conv-main">
-          <h4>${esc(c.name)}</h4>
+          <h4>${esc(c.nickname)}</h4>
           <p>${c.lastMine?'나: ':''}${esc(c.lastPreview)}</p>
         </div>
         <span class="conv-time">${fmtConvDate(c.lastAt)}</span>
@@ -687,9 +848,9 @@ document.querySelector('#newChatBtn').onclick=async()=>{
   try{
     const members=await api('/api/messages/members');
     newChatMembers.innerHTML=members.length?members.map(m=>`
-      <button type="button" class="conversation-card" data-user-id="${m.id}" data-name="${esc(m.name)}">
-        ${avatarHtml(m.photo_url,m.name,40)}
-        <div class="conv-main"><h4>${esc(m.name)}</h4><p>${esc([m.age_group,m.region,m.interest].filter(Boolean).join(' · ')||'프로필 미등록')}</p></div>
+      <button type="button" class="conversation-card" data-user-id="${m.id}" data-nickname="${esc(m.nickname)}">
+        ${avatarHtml(m.photo_url,m.nickname,40)}
+        <div class="conv-main"><h4>${esc(m.nickname)}</h4><p>${esc([m.age?m.age+'세':null,m.region,m.interest].filter(Boolean).join(' · ')||'프로필 미등록')}</p></div>
       </button>`).join(''):'<p class="request-empty">대화할 수 있는 회원이 없어요</p>';
   }catch(err){newChatMembers.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
 };
@@ -698,7 +859,7 @@ newChatMembers.addEventListener('click',e=>{
   const card=e.target.closest('.conversation-card');
   if(!card) return;
   newChatDialog.close();
-  openChat(Number(card.dataset.userId),card.dataset.name);
+  openChat(Number(card.dataset.userId),card.dataset.nickname);
 });
 
 function renderAttachment(m){
@@ -863,10 +1024,29 @@ chatThread.addEventListener('click',e=>{
 // X 버튼/Esc 등 어떤 방식으로 통화창이 닫혀도 과금 타이머와 통화 세션이 함께 정리되도록.
 callDialog.addEventListener('close',()=>{ if(callTickTimer) endCall(true) });
 
+// 통화 중 신고: 즉시 통화를 종료하고, 고객센터 신고 접수 화면을 상대가 미리 선택된 채로 연다.
+document.querySelector('#callReportBtn').onclick=async()=>{
+  const reportTargetId=currentChatPartnerId;
+  endCall(true);
+  chatDialog.close();
+  mobileMenu.classList.remove('show');authMenu.classList.remove('show');
+  supportError.textContent='';supportForm.reset();
+  supportDialog.showModal();
+  await loadSupportOptions();
+  loadMyTickets();
+  supportCategory.value='report';
+  updateSupportFields();
+  supportTarget.value=String(reportTargetId);
+  document.querySelector('#supportSubject').value='통화 중 신고';
+};
+
+const CALL_SAFETY_NOTICE='상대방의 요구로 신체를 노출하지 마세요. 통화 내용을 녹화해 협박하는 사례가 있습니다.\n의심되는 상황이면 즉시 통화를 종료하고 신고해 주세요. 회사는 통화 내용을 저장하지 않습니다.\n\n계속 진행할까요?';
+
 ['voiceCallBtn','videoCallBtn'].forEach(id=>{
   document.querySelector(`#${id}`).onclick=async()=>{
     const callType=id==='voiceCallBtn'?'voice':'video';
     chatError.textContent='';
+    if(!window.confirm(CALL_SAFETY_NOTICE)) return;
     if(!(await canEnterCall())) return;
     try{
       const fd=new FormData();

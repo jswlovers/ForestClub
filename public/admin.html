@@ -40,9 +40,11 @@
         <button class="admin-tab" data-tab="identity">신분증 인증</button>
         <button class="admin-tab" data-tab="companions">동행 신청 현황</button>
         <button class="admin-tab" data-tab="interests">참가 문의</button>
+        <button class="admin-tab" data-tab="attendances">모임 참석 관리</button>
         <button class="admin-tab" data-tab="tickets">고객센터/신고</button>
         <button class="admin-tab" data-tab="coincharges">코인 충전 승인</button>
         <button class="admin-tab" data-tab="coinledger">코인 원장</button>
+        <button class="admin-tab" data-tab="settings">운영정책 설정</button>
         <button class="admin-tab" data-tab="notify">안내 메시지 발송</button>
         <button class="admin-tab" data-tab="kakao">카카오톡 발송</button>
         <button class="admin-tab" data-tab="notifications">알림 발송 로그</button>
@@ -50,7 +52,29 @@
 
       <section class="admin-panel" id="panel-users">
         <div class="panel-head"><h2>회원 관리</h2><span class="panel-count" id="usersCount"></span></div>
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>역할</th><th>보유 코인</th><th>상태</th><th>신고</th><th>인증</th><th>가입일</th><th>처리</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <p class="dialog-sub">가입심사가 '대기중'인 회원은 승인 전까지 쪽지·동행신청·코인충전·통화·모임참석확정을 쓸 수 없어요. 서류 심사·인터뷰를 마쳤으면 승인해주세요.</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>닉네임</th><th>이메일</th><th>연락처</th><th>역할</th><th>성별</th><th>보유 코인</th><th>가입심사</th><th>이용상태</th><th>신고</th><th>인증</th><th>가입일</th><th>처리</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-attendances">
+        <div class="panel-head"><h2>모임 참석 확정 관리</h2><span class="panel-count" id="attendancesCount"></span></div>
+        <p class="dialog-sub">회원이 참석 확정한 모임의 보류 코인 현황이에요. 실제 참석을 확인하면 '참석 완료'로, 무단 불참이면 '무단불참'으로 처리해 보류를 정산하세요.</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>회원</th><th>모임</th><th>참석 예정일</th><th>보류 코인</th><th>상태</th><th>확정일</th><th>처리</th></tr></thead><tbody id="attendancesBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-settings">
+        <div class="panel-head"><h2>운영정책 설정값</h2></div>
+        <p class="dialog-sub">운영정책 문서가 [미정]으로 남긴 무료 코인 지급 수량이에요. 값을 정하기 전까지는 0(미지급)으로 동작해요. 성별 차등 지급 시, 한쪽 성별이 사실상 무료로 계속 이용할 수 있는 수준까지 벌어지지 않도록 아래 점검 지표를 함께 확인하세요.</p>
+        <form id="settingsForm" class="admin-narrow-form">
+          <label>가입 승인 웰컴 코인 — 남성<input type="number" id="settingWelcomeMale" min="0" step="100"></label>
+          <label>가입 승인 웰컴 코인 — 여성<input type="number" id="settingWelcomeFemale" min="0" step="100"></label>
+          <label>출석 코인 (1일 1회)<input type="number" id="settingDailyCheckin" min="0" step="100"></label>
+          <p class="auth-error" id="settingsError"></p>
+          <button class="primary" type="submit">저장</button>
+        </form>
+        <div class="panel-head" style="margin-top:36px"><h2>성별 유료 코인 구매 비율 점검</h2></div>
+        <p class="dialog-sub">한쪽 성별이 90%를 넘으면 무료 코인 지급 기준을 재검토하세요(운영정책 제2장).</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>성별</th><th>유료 코인 누적</th><th>무료 코인 누적</th></tr></thead><tbody id="coinStatsBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-applications">

@@ -68,7 +68,7 @@ document.querySelectorAll('.admin-tab').forEach(t=>t.onclick=()=>{
 });
 
 async function loadAll(){
-  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadTickets(),loadCoinCharges(),loadCoinLedger(),loadNotifications(),loadKakao()]);
+  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadAttendances(),loadTickets(),loadCoinCharges(),loadCoinLedger(),loadSettings(),loadNotifications(),loadKakao()]);
 }
 
 const REPORT_WARN_THRESHOLD=3,REPORT_SUSPEND_THRESHOLD=5;
@@ -84,23 +84,39 @@ function verifyToggles(u){
   return identityPill+toggles;
 }
 
+const GENDER_LABEL={male:'남성',female:'여성'};
+const SIGNUP_STATUS_LABEL={pending:'대기중',approved:'승인됨',rejected:'거절됨'};
+
+function signupStatusPill(u){
+  if(u.withdrawn_at) return '<span class="status-pill suspended">탈퇴함</span>';
+  const cls=u.status==='approved'?'approved':(u.status==='rejected'?'suspended':'pending');
+  return `<span class="status-pill ${cls}" title="${esc(u.rejected_reason||'')}">${SIGNUP_STATUS_LABEL[u.status]||u.status}</span>`;
+}
+
 async function loadUsers(){
   const users=await api('/api/admin/users');
   document.querySelector('#usersCount').textContent=`총 ${users.length}명`;
   document.querySelector('#usersBody').innerHTML=users.map(u=>`
     <tr data-id="${u.id}">
-      <td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone||'-')}</td><td>${u.role==='admin'?'관리자':'회원'}</td><td>${u.coins.toLocaleString()}</td>
+      <td>${esc(u.name)}</td><td>${esc(u.nickname||'-')}</td><td>${esc(u.email)}</td><td>${esc(u.phone||'-')}</td><td>${u.role==='admin'?'관리자':'회원'}</td>
+      <td>${GENDER_LABEL[u.gender]||'-'}</td><td>${u.coins.toLocaleString()}</td>
+      <td>${u.role==='admin'?'-':signupStatusPill(u)}</td>
       <td>${u.suspended_at?`<span class="status-pill suspended" title="${esc(u.suspended_reason||'')}">정지됨</span>`:'<span class="status-pill approved">정상</span>'}</td>
       <td>${u.report_count?`<span class="status-pill ${u.report_count>=REPORT_SUSPEND_THRESHOLD?'suspended':(u.report_count>=REPORT_WARN_THRESHOLD?'pending':'')}">${u.report_count}건</span>`:'-'}</td>
       <td>${u.role==='admin'?'-':verifyToggles(u)}</td>
       <td>${fmt(u.created_at)}</td>
-      <td>${u.role==='admin'?'-':(u.suspended_at?`<div class="row-actions"><button class="approve-btn" data-action="unsuspend" data-id="${u.id}">정지 해제</button></div>`:`<div class="row-actions"><button class="reject-btn" data-action="suspend" data-id="${u.id}">이용 정지</button></div>`)}</td>
+      <td>
+        ${u.role==='admin'?'-':`<div class="row-actions">
+          ${u.status==='pending'?`<button class="approve-btn" data-action="approve-member" data-id="${u.id}">가입 승인</button><button class="reject-btn" data-action="reject-member" data-id="${u.id}">가입 거절</button>`:''}
+          ${u.suspended_at?`<button class="approve-btn" data-action="unsuspend" data-id="${u.id}">정지 해제</button>`:`<button class="reject-btn" data-action="suspend" data-id="${u.id}">이용 정지</button>`}
+        </div>`}
+      </td>
     </tr>
-  `).join('')||'<tr><td colspan="10">회원이 없어요</td></tr>';
+  `).join('')||'<tr><td colspan="13">회원이 없어요</td></tr>';
 
   const notifyUser=document.querySelector('#notifyUser');
   const withPhone=users.filter(u=>u.role!=='admin'&&u.phone);
-  const userOptions=withPhone.length?withPhone.map(u=>`<option value="${u.id}">${esc(u.name)} (${esc(u.email)})</option>`).join(''):'<option value="">연락처가 등록된 회원이 없어요</option>';
+  const userOptions=withPhone.length?withPhone.map(u=>`<option value="${u.id}">${esc(u.nickname||u.name)} (${esc(u.email)})</option>`).join(''):'<option value="">연락처가 등록된 회원이 없어요</option>';
   notifyUser.innerHTML=userOptions;
   document.querySelector('#kakaoUser').innerHTML=userOptions;
 }
@@ -116,6 +132,23 @@ document.querySelector('#usersBody').addEventListener('click',async e=>{
     }catch(err){showToast(err.message)}
     return;
   }
+  if(btn.dataset.action==='approve-member'){
+    try{
+      await api(`/api/admin/users/${btn.dataset.id}/approve`,{method:'POST'});
+      showToast('가입을 승인했어요');
+      loadUsers();
+    }catch(err){showToast(err.message)}
+    return;
+  }
+  if(btn.dataset.action==='reject-member'){
+    const reason=window.prompt('거절 사유를 입력해주세요 (선택)')||'';
+    try{
+      await api(`/api/admin/users/${btn.dataset.id}/reject`,{method:'POST',body:{reason}});
+      showToast('가입을 거절했어요');
+      loadUsers();
+    }catch(err){showToast(err.message)}
+    return;
+  }
   let body;
   if(btn.dataset.action==='suspend'){
     const reason=window.prompt('정지 사유를 입력해주세요 (선택)')||'';
@@ -127,6 +160,73 @@ document.querySelector('#usersBody').addEventListener('click',async e=>{
     loadUsers();loadTickets();
   }catch(err){showToast(err.message)}
 });
+
+/* ── 모임 참석 확정 관리 ───────────────────────────────── */
+const ATTENDANCE_STATUS_LABEL={confirmed:'보류중',cancelled:'취소됨',attended:'참석 완료',no_show:'무단불참'};
+
+async function loadAttendances(){
+  const list=await api('/api/admin/event-attendances');
+  document.querySelector('#attendancesCount').textContent=`총 ${list.length}건`;
+  document.querySelector('#attendancesBody').innerHTML=list.map(a=>`
+    <tr data-id="${a.id}">
+      <td>${esc(a.nickname||a.name)}</td><td>${esc(a.event_name)}</td><td>${esc(a.event_date)}</td>
+      <td>${a.hold_coins.toLocaleString()}</td>
+      <td><span class="status-pill ${a.status==='attended'?'approved':(a.status==='no_show'?'suspended':'pending')}">${ATTENDANCE_STATUS_LABEL[a.status]||a.status}</span>${a.penalty_krw?`<br><small>위약금 ${a.penalty_krw.toLocaleString()}원</small>`:''}</td>
+      <td>${fmt(a.created_at)}</td>
+      <td>${a.status==='confirmed'?`<div class="row-actions"><button class="approve-btn" data-action="attended" data-id="${a.id}">참석 완료</button><button class="reject-btn" data-action="no-show" data-id="${a.id}">무단불참</button></div>`:'-'}</td>
+    </tr>
+  `).join('')||'<tr><td colspan="7">참석 확정 내역이 없어요</td></tr>';
+}
+
+document.querySelector('#attendancesBody').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action]');
+  if(!btn) return;
+  try{
+    if(btn.dataset.action==='attended'){
+      await api(`/api/admin/event-attendances/${btn.dataset.id}/attended`,{method:'POST'});
+      showToast('참석 완료로 처리하고 보류를 전액 해제했어요');
+    }else if(btn.dataset.action==='no-show'){
+      const askPenalty=window.confirm('골프장 등에서 실제로 위약금이 부과됐나요? (확인=금액 입력, 취소=위약금 없이 보류만 몰수)');
+      let penaltyKrw=null,penaltyNote='';
+      if(askPenalty){
+        penaltyKrw=Number(window.prompt('실제 위약금 금액(원)을 입력해주세요','0'))||0;
+        penaltyNote=window.prompt('위약금 관련 메모(선택)')||'';
+      }
+      await api(`/api/admin/event-attendances/${btn.dataset.id}/no-show`,{method:'POST',body:{penaltyKrw,penaltyNote}});
+      showToast('무단불참으로 처리하고 보류 코인을 몰수했어요');
+    }
+    loadAttendances();
+  }catch(err){showToast(err.message)}
+});
+
+/* ── 운영정책 설정값 (무료 코인 수량) ─────────────────────── */
+async function loadSettings(){
+  const settings=await api('/api/admin/settings');
+  const map=Object.fromEntries(settings.map(s=>[s.key,s.value]));
+  document.querySelector('#settingWelcomeMale').value=map.welcome_coins_male||0;
+  document.querySelector('#settingWelcomeFemale').value=map.welcome_coins_female||0;
+  document.querySelector('#settingDailyCheckin').value=map.daily_checkin_coins||0;
+
+  const stats=await api('/api/admin/coin-policy/stats');
+  document.querySelector('#coinStatsBody').innerHTML=stats.length?stats.map(s=>`
+    <tr><td>${GENDER_LABEL[s.gender]||s.gender}</td><td>${s.paid_coins.toLocaleString()}</td><td>${s.free_coins.toLocaleString()}</td></tr>
+  `).join(''):'<tr><td colspan="3">아직 데이터가 없어요</td></tr>';
+}
+
+document.querySelector('#settingsForm').onsubmit=async e=>{
+  e.preventDefault();
+  const settingsError=document.querySelector('#settingsError');
+  settingsError.textContent='';
+  try{
+    await Promise.all([
+      api('/api/admin/settings/welcome_coins_male',{method:'POST',body:{value:Number(document.querySelector('#settingWelcomeMale').value)}}),
+      api('/api/admin/settings/welcome_coins_female',{method:'POST',body:{value:Number(document.querySelector('#settingWelcomeFemale').value)}}),
+      api('/api/admin/settings/daily_checkin_coins',{method:'POST',body:{value:Number(document.querySelector('#settingDailyCheckin').value)}}),
+    ]);
+    showToast('설정을 저장했어요');
+    loadSettings();
+  }catch(err){settingsError.textContent=err.message}
+};
 
 const STATUS_LABEL={pending:'대기중',approved:'승인됨',rejected:'거절됨',accepted:'수락됨',declined:'거절됨',cancelled:'취소됨',sent:'발송됨',mock:'모의발송',failed:'발송실패',in_progress:'처리중',resolved:'처리완료'};
 const TICKET_CATEGORY_LABEL={complaint:'클레임/불만',refund:'환불 요청',report:'회원 신고',other:'기타 요청'};

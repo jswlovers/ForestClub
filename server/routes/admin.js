@@ -2,14 +2,16 @@ const express = require('express');
 const db = require('../db');
 const { requireAdmin } = require('../auth');
 const { notifyBySms } = require('../services/notify');
-const { creditCoins, getRecentLedger } = require('../services/coins');
+const { creditCoins, creditFreeCoins, getRecentLedger } = require('../services/coins');
+const { AttendanceError, resolveAttendance } = require('../services/attendance');
 const { rateLimit } = require('../rate-limit');
 
 const router = express.Router();
 router.use(requireAdmin);
 
 const listUsers = db.prepare(`
-  SELECT u.id, u.name, u.email, u.phone, u.role, u.created_at, u.suspended_at, u.suspended_reason,
+  SELECT u.id, u.name, u.nickname, u.email, u.phone, u.role, u.created_at, u.suspended_at, u.suspended_reason,
+    u.gender, u.birth_date, u.marital_status, u.status, u.rejected_at, u.rejected_reason, u.withdrawn_at,
     u.verified_identity_at, u.verified_employment_at, u.verified_golf_at,
     COALESCE((
       SELECT SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END)
@@ -23,6 +25,12 @@ const listUsers = db.prepare(`
 const getUserById = db.prepare('SELECT * FROM users WHERE id = ?');
 const suspendUserStmt = db.prepare(`UPDATE users SET suspended_at = datetime('now'), suspended_reason = ? WHERE id = ?`);
 const unsuspendUserStmt = db.prepare(`UPDATE users SET suspended_at = NULL, suspended_reason = NULL WHERE id = ?`);
+
+// 회원가입 심사(서류 심사·인터뷰) 승인/거절. 승인 전까지는 requireApproved가 걸린 기능(쪽지/동행신청/
+// 코인충전/통화/모임참석확정)을 쓸 수 없다 — 이용약관 제6조, 운영정책 제1장.
+const approveUserStmt = db.prepare(`UPDATE users SET status = 'approved', rejected_at = NULL, rejected_reason = NULL WHERE id = ?`);
+const rejectUserStmt = db.prepare(`UPDATE users SET status = 'rejected', rejected_at = datetime('now'), rejected_reason = ? WHERE id = ?`);
+const getAppSetting = db.prepare(`SELECT value FROM app_settings WHERE key = ?`);
 
 const setVerified = {
   identity: db.prepare(`UPDATE users SET verified_identity_at = datetime('now') WHERE id = ?`),
@@ -83,6 +91,48 @@ router.post('/users/:id/unsuspend', (req, res) => {
   const target = getUserById.get(Number(req.params.id));
   if (!target) return res.status(404).json({ error: '회원을 찾을 수 없어요' });
   unsuspendUserStmt.run(target.id);
+  res.json({ ok: true });
+});
+
+router.post('/users/:id/approve', (req, res) => {
+  const target = getUserById.get(Number(req.params.id));
+  if (!target) return res.status(404).json({ error: '회원을 찾을 수 없어요' });
+  if (target.status === 'approved') return res.status(409).json({ error: '이미 승인된 회원이에요' });
+
+  approveUserStmt.run(target.id);
+
+  // 웰컴 코인: 운영정책이 수량을 정할 때까지는 app_settings 기본값(0)이라 아무 일도 안 일어난다.
+  const settingKey = target.gender === 'female' ? 'welcome_coins_female' : 'welcome_coins_male';
+  const welcomeCoins = Number(getAppSetting.get(settingKey)?.value || 0);
+  if (welcomeCoins > 0) {
+    creditFreeCoins(target.id, welcomeCoins, 'welcome_bonus', '가입 승인 웰컴 코인');
+  }
+
+  notifyBySms(
+    target.id,
+    target.phone,
+    `[포레스트클럽] ${target.name}님, 회원가입 심사를 통과하셨습니다! 지금부터 모든 기능을 이용하실 수 있어요.`,
+    { kind: 'member_approved', variables: { name: target.name } }
+  ).catch((err) => console.error('[notify] member approve sms failed', err));
+
+  res.json({ ok: true });
+});
+
+router.post('/users/:id/reject', (req, res) => {
+  const target = getUserById.get(Number(req.params.id));
+  if (!target) return res.status(404).json({ error: '회원을 찾을 수 없어요' });
+  if (target.status === 'approved') return res.status(409).json({ error: '이미 승인된 회원이에요' });
+  const reason = String(req.body?.reason || '').trim();
+
+  rejectUserStmt.run(reason || null, target.id);
+
+  notifyBySms(
+    target.id,
+    target.phone,
+    `[포레스트클럽] ${target.name}님, 이번 심사 결과 아쉽게도 함께하지 못하게 되었습니다.${reason ? ` (사유: ${reason})` : ''} 거절일로부터 3개월 후 재신청하실 수 있어요.`,
+    { kind: 'member_rejected', variables: { name: target.name, reason } }
+  ).catch((err) => console.error('[notify] member reject sms failed', err));
+
   res.json({ ok: true });
 });
 
@@ -358,6 +408,85 @@ router.post('/identity-verifications/:id/reject', (req, res) => {
   ).catch((err) => console.error('[notify] identity reject sms failed', err));
 
   res.json({ ok: true });
+});
+
+// 모임 참석 확정 내역 — 실제 참석/무단불참을 관리자가 확인해 보류 코인을 정산한다(운영정책 제4장).
+const listAttendances = db.prepare(`
+  SELECT ea.*, u.nickname, u.name, u.phone
+  FROM event_attendances ea JOIN users u ON u.id = ea.user_id
+  ORDER BY ea.created_at DESC
+`);
+
+router.get('/event-attendances', (req, res) => {
+  res.json(listAttendances.all());
+});
+
+router.post('/event-attendances/:id/attended', (req, res) => {
+  try {
+    const attendance = resolveAttendance(Number(req.params.id), { status: 'attended', releasedPct: 100 });
+    res.json(attendance);
+  } catch (err) {
+    if (err instanceof AttendanceError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// 무단 불참 확정. penaltyKrw/penaltyNote는 골프장 등 제3자가 실제로 위약금을 부과했을 때만 채운다
+// (실제 위약금이 없으면 코인 보류 몰수만 하고 별도 청구는 하지 않는다 — 운영정책 "위약금 청구 판단 기준").
+router.post('/event-attendances/:id/no-show', (req, res) => {
+  const penaltyKrw = req.body?.penaltyKrw != null ? Math.max(0, Math.floor(Number(req.body.penaltyKrw))) : null;
+  const penaltyNote = String(req.body?.penaltyNote || '').trim() || null;
+  try {
+    const attendance = resolveAttendance(Number(req.params.id), { status: 'no_show', releasedPct: 0, penaltyKrw, penaltyNote });
+    const user = getUserById.get(attendance.user_id);
+    if (penaltyKrw) {
+      notifyBySms(
+        attendance.user_id,
+        user?.phone,
+        `[포레스트클럽] '${attendance.event_name}' 무단 불참으로 실제 위약금 ${penaltyKrw.toLocaleString()}원이 발생했어요. 고객센터로 문의해주세요.${penaltyNote ? ` (${penaltyNote})` : ''}`,
+        { kind: 'event_no_show_penalty', variables: { eventName: attendance.event_name, penaltyKrw: String(penaltyKrw) } }
+      ).catch((err) => console.error('[notify] no-show penalty sms failed', err));
+    }
+    res.json(attendance);
+  } catch (err) {
+    if (err instanceof AttendanceError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// 운영정책 문서가 [미정]으로 남긴 무료코인 수량 등을 관리자가 정하는 설정 화면.
+const listSettings = db.prepare(`SELECT key, value, updated_at FROM app_settings ORDER BY key`);
+const upsertSetting = db.prepare(`
+  INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+  ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+`);
+const ALLOWED_SETTING_KEYS = new Set(['welcome_coins_male', 'welcome_coins_female', 'daily_checkin_coins']);
+
+router.get('/settings', (req, res) => {
+  res.json(listSettings.all());
+});
+
+router.post('/settings/:key', (req, res) => {
+  const key = req.params.key;
+  if (!ALLOWED_SETTING_KEYS.has(key)) return res.status(400).json({ error: '알 수 없는 설정 항목이에요' });
+  const value = Math.max(0, Math.floor(Number(req.body?.value)));
+  if (!Number.isFinite(value)) return res.status(400).json({ error: '0 이상의 숫자를 입력해주세요' });
+  upsertSetting.run(key, String(value));
+  res.json({ ok: true });
+});
+
+// 성별별 유료 코인 구매 비율 점검 지표(운영정책 제2장) — 자동 조정은 하지 않고 참고용 수치만 제공한다.
+router.get('/coin-policy/stats', (req, res) => {
+  const rows = db.prepare(`
+    SELECT u.gender,
+           COALESCE(SUM(CASE WHEN cl.direction = 'credit' AND cl.coin_type = 'paid' THEN cl.amount ELSE 0 END), 0) AS paid_coins,
+           COALESCE(SUM(CASE WHEN cl.direction = 'credit' AND cl.coin_type = 'free' THEN cl.amount ELSE 0 END), 0) AS free_coins
+    FROM users u
+    LEFT JOIN coin_ledger cl ON cl.account = 'user:' || u.id
+    WHERE u.role != 'admin' AND u.gender IS NOT NULL
+    GROUP BY u.gender
+  `).all();
+  res.json(rows);
 });
 
 module.exports = router;

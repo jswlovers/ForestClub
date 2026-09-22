@@ -46,3 +46,9 @@
 .kakao-status .ok{color:#2f6b45;font-weight:700}
 .kakao-preview{margin:14px 0 0;padding:12px 14px;border-radius:11px;background:#f1ece0;font-size:13px;line-height:1.6;white-space:pre-wrap}
 .kakao-hint{font-size:12.5px;color:var(--muted);margin:6px 0 0;line-height:1.6}
+
+/* 운영정책 설정값(무료 코인) */
+#settingsForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+#settingsForm input{width:100%;max-width:260px;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
+#settingsForm input:focus{border-color:var(--gold)}
+#settingsForm button{width:auto;padding:12px 22px;margin-top:18px}

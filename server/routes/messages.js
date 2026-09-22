@@ -4,7 +4,7 @@ const path = require('node:path');
 const express = require('express');
 const multer = require('multer');
 const db = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireApproved } = require('../auth');
 const { debitCoins, getBalance, InsufficientCoinsError } = require('../services/coins');
 const { notifyBySms } = require('../services/notify');
 const { rateLimit } = require('../rate-limit');
@@ -41,12 +41,30 @@ const upload = multer({
   },
 });
 
+// 실명은 절대 노출하지 않는다 — 다른 회원에게는 닉네임/나이/지역/직업만 보여준다.
 const listMembers = db.prepare(`
-  SELECT id, name, age_group, region, interest, intro, photo_url
-  FROM users WHERE role != 'admin' AND id != ?
+  SELECT id, nickname,
+         CAST((strftime('%Y%m%d', 'now') - strftime('%Y%m%d', birth_date)) / 10000 AS INTEGER) AS age,
+         age_group, region, interest, intro, photo_url
+  FROM users WHERE role != 'admin' AND id != ? AND withdrawn_at IS NULL AND status = 'approved'
   ORDER BY created_at DESC
 `);
 const getUserById = db.prepare('SELECT * FROM users WHERE id = ?');
+
+// 메시지 단계적 개방(문서3 제5장의2): 음성통화는 상대와 텍스트를 한 번이라도 주고받았을 때만,
+// 영상통화는 상대와 음성통화를 한 번이라도 했을 때만 허용한다.
+const hasTextHistory = db.prepare(`
+  SELECT 1 FROM messages
+  WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
+    AND attachment_type IS NULL
+  LIMIT 1
+`);
+const hasVoiceCallHistory = db.prepare(`
+  SELECT 1 FROM messages
+  WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
+    AND attachment_type = 'call' AND attachment_name = 'voice'
+  LIMIT 1
+`);
 
 const insertMessage = db.prepare(`
   INSERT INTO messages (sender_id, recipient_id, body, attachment_type, attachment_url, attachment_name)
@@ -109,12 +127,13 @@ router.get('/conversations', (req, res) => {
   const partners = partnerIdsQuery.all(req.user.id, req.user.id, req.user.id);
   const list = partners.map(({ other_id: otherId }) => {
     const other = getUserById.get(otherId);
+    const withdrawn = !other || other.withdrawn_at;
     const last = lastMessageQuery.get(req.user.id, otherId, otherId, req.user.id);
     const unread = unreadFromQuery.get(otherId, req.user.id).c;
     return {
       userId: otherId,
-      name: other ? other.name : '(탈퇴한 회원)',
-      photoUrl: other ? other.photo_url : null,
+      nickname: withdrawn ? '(탈퇴한 회원)' : other.nickname,
+      photoUrl: withdrawn ? null : other.photo_url,
       lastPreview: previewFor(last),
       lastAt: last ? last.created_at : null,
       lastMine: last ? last.sender_id === req.user.id : false,
@@ -129,13 +148,17 @@ router.get('/conversations/:userId', (req, res) => {
   const otherId = Number(req.params.userId);
   const other = getUserById.get(otherId);
   if (!other || other.role === 'admin') return res.status(404).json({ error: '회원을 찾을 수 없어요' });
+  const withdrawn = !!other.withdrawn_at;
 
   markReadStmt.run(req.user.id, otherId);
   const thread = threadQuery.all(req.user.id, otherId, otherId, req.user.id);
-  res.json({ partner: { id: other.id, name: other.name, photoUrl: other.photo_url }, messages: thread });
+  res.json({
+    partner: { id: other.id, nickname: withdrawn ? '(탈퇴한 회원)' : other.nickname, photoUrl: withdrawn ? null : other.photo_url },
+    messages: thread,
+  });
 });
 
-router.post('/', sendLimiter, (req, res, next) => {
+router.post('/', sendLimiter, requireApproved, (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message || '파일을 업로드하지 못했어요' });
     next();
@@ -149,7 +172,7 @@ router.post('/', sendLimiter, (req, res, next) => {
     return res.status(400).json({ error: '받는 회원을 확인해주세요' });
   }
   const recipient = getUserById.get(recipientId);
-  if (!recipient || recipient.role === 'admin') {
+  if (!recipient || recipient.role === 'admin' || recipient.withdrawn_at) {
     return res.status(404).json({ error: '받는 회원을 찾을 수 없어요' });
   }
   if (kind === 'text' && !body) {
@@ -168,6 +191,14 @@ router.post('/', sendLimiter, (req, res, next) => {
       return res.status(402).json({ error: `코인이 ${ENTRY_MIN_COINS.toLocaleString()}개 이하면 통화를 시작할 수 없어요. 충전 후 다시 시도해주세요`, coins: getBalance(req.user.id) });
     }
     const callType = req.body.callType === 'video' ? 'video' : 'voice';
+    // 단계적 개방: 음성통화는 텍스트를 한 번이라도 주고받았을 때만, 영상통화는 음성통화 이력이
+    // 있을 때만 허용한다(운영정책 제5장의2) — 즉흥적인 악용을 줄이기 위함.
+    if (callType === 'voice' && !hasTextHistory.get(req.user.id, recipientId, recipientId, req.user.id)) {
+      return res.status(403).json({ error: '메시지를 먼저 주고받은 상대와만 보이스톡을 할 수 있어요' });
+    }
+    if (callType === 'video' && !hasVoiceCallHistory.get(req.user.id, recipientId, recipientId, req.user.id)) {
+      return res.status(403).json({ error: '보이스톡을 먼저 나눈 상대와만 페이스톡을 할 수 있어요' });
+    }
     const result = await createCallRoom(callType);
     if (!result.configured) {
       return res.status(501).json({ error: '통화 기능이 아직 설정되지 않았어요. 관리자에게 문의해주세요' });
@@ -207,8 +238,8 @@ router.post('/', sendLimiter, (req, res, next) => {
       notifyBySms(
         recipient.id,
         recipient.phone,
-        `[포레스트클럽] ${req.user.name}님에게 새 메시지가 도착했어요. 앱에서 확인해주세요.`,
-        { kind: 'new_message', variables: { senderName: req.user.name } }
+        `[포레스트클럽] ${req.user.nickname}님에게서 새 메시지가 도착했어요. 앱에서 확인해주세요.`,
+        { kind: 'new_message', variables: { senderName: req.user.nickname } }
       ).catch((err) => console.error('[notify] new message sms failed', err));
     }
 
@@ -234,4 +265,14 @@ router.get('/attachments/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
+// 개인정보처리방침 제8조4항: 메시지 내용은 발송일로부터 1년이 지나면 파기한다.
+// (받은 메시지함 100건 캡인 pruneInbox와는 별개로, 보낸 메시지함까지 포함해 전역으로 적용한다.)
+const pruneOldStmt = db.prepare(`DELETE FROM messages WHERE created_at < datetime('now', '-365 days')`);
+function pruneOldMessages() {
+  const info = pruneOldStmt.run();
+  if (info.changes > 0) console.log(`[messages] 1년 경과 메시지 ${info.changes}건 파기`);
+  return info.changes;
+}
+
 module.exports = router;
+module.exports.pruneOldMessages = pruneOldMessages;

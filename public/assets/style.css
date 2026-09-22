@@ -152,7 +152,7 @@ dialog::backdrop{background:rgba(19,37,32,.6);backdrop-filter:blur(4px)}
 .dialog-icon{display:grid;place-items:center;width:50px;height:50px;background:#f1ece0;color:var(--gold);border-radius:16px;font-size:22px}
 dialog h2{margin:16px 0 6px;font-size:22px}
 .dialog-sub{color:var(--muted);font-size:13.5px;line-height:1.7;margin:0 0 6px}
-.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label,#chargeForm label,#composeForm label,#supportForm label,#notifyForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
+.auth-form label,#applyForm label,#doneDialog label,#profileForm label,#passwordForm label,#companionForm label,#chargeForm label,#composeForm label,#supportForm label,#notifyForm label,#attendanceForm label{display:block;font-size:13px;color:#4c534b;font-weight:600;margin:14px 0 6px}
 #applyForm input,#applyForm select,#applyForm textarea,#profileForm input,#profileForm select,#profileForm textarea,#passwordForm input,#companionForm select,#companionForm textarea,#chargeForm input,#composeForm select,#composeForm textarea,#supportForm input,#supportForm select,#supportForm textarea,#notifyForm select,#notifyForm textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);resize:vertical}
 #applyForm input:focus,#applyForm select:focus,#applyForm textarea:focus,#profileForm input:focus,#profileForm select:focus,#profileForm textarea:focus,#passwordForm input:focus,#companionForm select:focus,#companionForm textarea:focus,#chargeForm input:focus,#composeForm select:focus,#composeForm textarea:focus,#supportForm input:focus,#supportForm select:focus,#supportForm textarea:focus,#notifyForm select:focus,#notifyForm textarea:focus{border-color:var(--gold)}
 .auth-error{color:#b23b3b;font-size:13px;min-height:18px;margin:10px 0 0}
@@ -249,6 +249,60 @@ dialog h2{margin:16px 0 6px;font-size:22px}
   .field-row{grid-template-columns:1fr}
 }
 
-/* 광고성 정보 수신 동의 체크박스 (프로필) */
-#profileForm .consent-row{display:flex;gap:10px;align-items:flex-start;font-weight:400;line-height:1.55;font-size:12.5px;color:var(--muted);margin:18px 0 0}
-#profileForm .consent-row input{width:auto;margin-top:3px;flex:none}
+/* 동의 체크박스 (프로필 화면의 광고성 정보 동의 + 회원가입 화면의 4개 분리 체크박스) */
+#profileForm .consent-row,#signupForm .consent-row{display:flex;gap:10px;align-items:flex-start;font-weight:400;line-height:1.55;font-size:12.5px;color:var(--muted);margin:14px 0 0}
+#profileForm .consent-row input,#signupForm .consent-row input{width:auto;margin-top:3px;flex:none}
+#signupForm .consent-row a{color:var(--forest);font-weight:700}
+
+/* 회원가입: 성별 select / 혼인여부 라디오 */
+#signupForm select{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);background:#fff}
+#signupForm select:focus{border-color:var(--gold)}
+.marital-fieldset{border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin:14px 0 0}
+.marital-fieldset legend{font-size:13px;color:#4c534b;font-weight:600;padding:0 4px}
+.radio-row{display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px;padding:6px 0;margin:0}
+.radio-row input{width:auto}
+#signupNicknameHint{display:block;font-size:12px;margin-top:4px}
+#signupNicknameHint.ok{color:#2c7a4b}
+#signupNicknameHint.bad{color:#b23b3b}
+
+/* 모임 참석 확정 */
+.attend{border:1px solid var(--forest);background:none;color:var(--forest);padding:9px 14px;border-radius:10px;font-weight:700;font-size:13px}
+.attend:hover{background:rgba(27,51,40,.08)}
+.travel-card .attend{border-color:var(--forest);color:var(--forest)}
+#attendanceForm input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
+#attendanceForm input:focus{border-color:var(--gold)}
+.attendance-policy{background:#f7f4ec;border-radius:12px;padding:14px 16px;margin:16px 0;font-size:12.5px;color:var(--muted);line-height:1.7}
+.attendance-policy p{margin:0 0 8px;color:var(--ink)}
+.attendance-policy ul{margin:0;padding-left:18px}
+
+/* 회원 탈퇴 */
+.danger-link{color:#b23b3b;display:block;text-align:center;width:100%;margin-top:4px}
+.primary.danger{background:#b23b3b;box-shadow:none}
+.primary.danger:hover{background:#962f2f}
+
+/* 코인: 사용가능/보류 표시 */
+#coinsHeldRow{color:var(--muted);font-size:12.5px}
+
+/* 통화 안전 안내 / 신고 버튼 */
+#callDialog .chat-header{flex-wrap:wrap;gap:8px}
+#callDialog .member-hint{margin-top:10px}
+
+/* 푸터: 법적 페이지 링크 + 사업자 정보 */
+.footer-links{display:flex;justify-content:center;gap:16px;margin:14px 0 10px}
+.footer-links a{color:#c8cdc3;font-size:12.5px;text-decoration:underline}
+.footer-business{color:#6f766c;font-size:11.5px;line-height:1.8;max-width:640px;margin:0 auto}
+
+/* 법적 문서 페이지(terms.html / privacy.html / operating-policy.html) 전용 */
+.legal-page{max-width:760px;margin:0 auto;padding:70px 24px 100px;color:var(--ink);line-height:1.75}
+.legal-page h1{font-size:28px;margin-bottom:6px}
+.legal-page .legal-meta{color:var(--muted);font-size:13px;margin-bottom:36px}
+.legal-page h2{font-size:18px;margin:40px 0 10px;color:var(--forest)}
+.legal-page h3{font-size:15.5px;margin:22px 0 8px}
+.legal-page p,.legal-page li{font-size:14.5px;color:#3c4740}
+.legal-page ol,.legal-page ul{padding-left:22px}
+.legal-page table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+.legal-page th,.legal-page td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+.legal-page th{background:#f7f4ec}
+.legal-page .legal-note{background:#f7f4ec;border-radius:12px;padding:14px 18px;margin:16px 0;font-size:13.5px;color:var(--muted)}
+.legal-page .pending{color:#b8863f;font-weight:600}
+.legal-page a.back-link{display:inline-block;margin-bottom:24px;color:var(--forest);font-weight:700;font-size:13.5px}

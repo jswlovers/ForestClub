@@ -9,8 +9,10 @@ router.use(requireAuth);
 
 const CATEGORIES = new Set(['complaint', 'refund', 'report', 'other']);
 
+// 신고 대상도 실명이 아니라 닉네임으로 골라야 한다 — 신고 사유·대상 식별은 target_user_id로
+// 내부적으로만 연결되고, 화면에는 다른 회원과 똑같이 닉네임만 노출한다.
 const listTargetMembers = db.prepare(`
-  SELECT id, name FROM users WHERE role != 'admin' AND id != ? ORDER BY name
+  SELECT id, nickname FROM users WHERE role != 'admin' AND id != ? AND withdrawn_at IS NULL ORDER BY nickname
 `);
 const getTargetMember = db.prepare(`SELECT id FROM users WHERE id = ? AND role != 'admin'`);
 const getChargeForUser = db.prepare(`SELECT id FROM coin_charges WHERE id = ? AND user_id = ?`);
@@ -22,7 +24,7 @@ const insertTicket = db.prepare(`
 
 const myTickets = db.prepare(`
   SELECT t.id, t.category, t.subject, t.body, t.status, t.admin_note, t.refund_coins, t.created_at, t.processed_at,
-         tgt.name AS target_name
+         tgt.nickname AS target_nickname
   FROM support_tickets t
   LEFT JOIN users tgt ON tgt.id = t.target_user_id
   WHERE t.user_id = ? ORDER BY t.created_at DESC

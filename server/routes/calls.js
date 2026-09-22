@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireApproved } = require('../auth');
 const { debitCoins, getBalance, InsufficientCoinsError } = require('../services/coins');
 const { rateLimit } = require('../rate-limit');
 const { COST_PER_SEC, ENTRY_MIN_COINS, CONTINUE_MIN_COINS } = require('../call-pricing');
@@ -14,7 +14,7 @@ router.get('/can-enter', (req, res) => {
   res.json({ allowed: coins > ENTRY_MIN_COINS, coins, entryMin: ENTRY_MIN_COINS, continueMin: CONTINUE_MIN_COINS });
 });
 
-router.post('/tick', tickLimiter, (req, res) => {
+router.post('/tick', tickLimiter, requireApproved, (req, res) => {
   const callType = req.body.callType === 'video' ? 'video' : 'voice';
   const cost = COST_PER_SEC[callType];
   try {
