@@ -8,7 +8,16 @@ extension Notification.Name {
 
 final class Service {
     static let shared = Service()
-    var address: String { serverOverride ?? UserDefaults.standard.string(forKey: "forest.server") ?? "" }
+    static let productionAddress = "https://forest.sean2022.one:8888"
+    var address: String { serverOverride ?? Self.startupAddress() }
+    private static func startupAddress() -> String {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-forest.server"), arguments.indices.contains(index + 1), validURL(arguments[index + 1]) != nil { return arguments[index + 1] }
+        #endif
+        if let saved = UserDefaults.standard.string(forKey: "forest.server"), saved.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == productionAddress { return saved }
+        return productionAddress
+    }
     private var serverOverride: String?
     private let keychainEnabled: Bool
     var events = Event.examples
@@ -92,7 +101,7 @@ final class Service {
                 }
                 if ["/api/auth/login", "/api/auth/signup"].contains(request.url?.path ?? ""), let data = data,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    self.user = json["name"] as? String
+                    self.user = (json["nickname"] as? String) ?? (json["name"] as? String)
                     self.userId = json["id"] as? Int
                     self.rememberLogin()
                 }
@@ -124,7 +133,7 @@ final class Service {
         }
         json(["api", "auth", "me"]) { json, error in
             if let profile = json as? [String: Any] {
-                self.user = profile["name"] as? String; self.userId = profile["id"] as? Int
+                self.user = (profile["nickname"] as? String) ?? (profile["name"] as? String); self.userId = profile["id"] as? Int
                 NotificationCenter.default.post(name: .clubLoginChanged, object: nil)
             }
             completion(error)
@@ -188,7 +197,7 @@ final class Service {
 extension UIViewController {
     func requireLogin(_ action: @escaping () -> Void) {
         guard !Service.shared.address.isEmpty else {
-            let alert = UIAlertController(title: "서버 연결", message: "마이페이지에서 서비스 서버를 먼저 연결해주세요.", preferredStyle: .alert)
+            let alert = UIAlertController(title: "서버 연결", message: "인터넷 연결을 확인한 후 다시 시도해주세요.", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "취소", style: .cancel))
             alert.addAction(UIAlertAction(title: "설정", style: .default) { _ in self.navigationController?.pushViewController(AccountController(), animated: true) })
             present(alert, animated: true); return

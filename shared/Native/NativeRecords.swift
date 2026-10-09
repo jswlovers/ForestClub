@@ -2,6 +2,8 @@ import UIKit
 
 typealias Record = [String: Any]
 func string(_ row: Record, _ key: String) -> String {
+    let nicknameKeys = ["name": "nickname", "requester_name": "requester_nickname", "target_name": "target_nickname"]
+    if let alias = nicknameKeys[key], let nickname = row[alias] as? String, !nickname.isEmpty { return nickname }
     if let value = row[key] as? String { return value }
     if let value = row[key] as? NSNumber { return value.stringValue }
     return ""

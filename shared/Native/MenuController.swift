@@ -30,7 +30,7 @@ enum MenuIcon {
 }
 
 final class MenuController: UITableViewController {
-    let items = [["골프모임", "여행모임"], ["로그인 · 회원가입 · 서버 설정"], ["클럽 소개", "멤버십 · 지원하기", "멤버 후기", "내 프로필", "내 지원 현황", "내 신청함", "쪽지함", "코인 충전", "고객센터"]]
+    let items = [["골프모임", "여행모임"], ["로그인 · 회원가입 · 계정 관리"], ["클럽 소개", "멤버십 · 지원하기", "멤버 후기", "내 프로필", "내 지원 현황", "내 신청함", "쪽지함", "코인 충전", "고객센터"]]
     init() { super.init(style: .grouped) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func viewDidLoad() { super.viewDidLoad(); title = "전체 메뉴" }
@@ -72,7 +72,7 @@ extension UIViewController {
             navigationController?.pushViewController(TextPageController(title: title, sections: [("포레스트클럽", "골프와 여행을 함께 즐기는 프라이빗 멤버십입니다."), ("함께하는 경험", "소규모 라운딩과 국내외 골프·여행 모임에서 취향을 나눕니다."), ("가입 절차", "온라인 지원서 → 서류 심사 → 멤버 인터뷰 → 승인 및 웰컴")]), animated: true)
         case "멤버 후기":
             navigationController?.pushViewController(TextPageController(title: title, sections: [("소개 자료의 후기", "비슷한 위치에서 비슷한 고민을 나눌 수 있는 자리가 드물었는데, 여기서는 편하게 말할 수 있어요."), ("라운딩", "라운딩 인원이 적어서 좋았습니다. 기다림 없이 여유롭게, 대화도 충분히 나눌 수 있어요."), ("여행", "스코틀랜드 투어는 평생 잊지 못할 경험이었습니다. 일정 하나하나가 세심했어요.")]), animated: true)
-        case "멤버십 · 지원하기": openApplication()
+        case "멤버십 · 지원하기": openMembershipStatus()
         case "내 프로필": openProfile()
         default:
             requireLogin {
@@ -83,9 +83,7 @@ extension UIViewController {
                 case "내 신청함": controller = CompanionInboxController()
                 case "고객센터": controller = SupportController()
                 default:
-                    controller = RecordsController(title: "내 지원 현황", path: ["api", "applications", "me"], render: { row in
-                        (statusText(string(row, "status")), [string(row, "created_at"), string(row, "admin_note")].filter { !$0.isEmpty }.joined(separator: "\n"))
-                    })
+                    self.openMembershipStatus(); return
                 }
                 self.navigationController?.pushViewController(controller, animated: true)
             }

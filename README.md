@@ -2,6 +2,14 @@
 
 골프·여행 프리미엄 멤버십 랜딩 사이트 + 회원/지원서/동행 신청 백엔드.
 
+## 모바일 앱
+
+- 최신 iPhone/iPad: `forest/forest.xcodeproj` — [실행 안내](forest/README.md)
+- iPhone 5s / iOS 12: `forest-legacy/forest.xcodeproj` — [설치 안내](forest-legacy/README.md)
+- Android 6.0 이상: `android/` — [빌드 및 설치 안내](android/README.md)
+
+모바일 앱은 `https://forest.sean2022.one:8888`에 자동 연결합니다. 회원 서비스는 앱 내부 화면과 공유 로그인 세션으로 이용합니다. 설치 파일은 `artifacts/`에 빌드 번호별로 보관합니다.
+
 ## 실행 방법
 
 ```bash

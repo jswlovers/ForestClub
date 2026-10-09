@@ -8,9 +8,11 @@ struct FormField {
     var keyboard: UIKeyboardType = .default
     var secure = false
     var multiline = false
+    var options: [(String, String)] = []
 }
 
-final class NativeFormController: UITableViewController {
+final class NativeFormController: UITableViewController, UIPickerViewDataSource, UIPickerViewDelegate {
+    private var selectedValues: [String: String] = [:]
     let fields: [FormField]
     let explanation: String?
     let submitTitle: String
@@ -38,6 +40,12 @@ final class NativeFormController: UITableViewController {
                 if field.keyboard == .emailAddress || field.secure { input.autocapitalizationType = .none; input.autocorrectionType = .no }
                 if field.key == "email" { input.textContentType = .username }
                 if field.secure { input.textContentType = .password }
+                if !field.options.isEmpty {
+                    let picker = UIPickerView(); picker.tag = fields.firstIndex(where: { $0.key == field.key }) ?? 0; picker.dataSource = self; picker.delegate = self
+                    input.inputView = picker
+                    if let choice = field.options.first(where: { $0.1 == field.value }) { input.text = choice.0; selectedValues[field.key] = choice.1 }
+                    let toolbar = UIToolbar(); toolbar.sizeToFit(); toolbar.items = [UIBarButtonItem(title: "완료", style: .done, target: self, action: #selector(endEditing))]; input.inputAccessoryView = toolbar
+                }
                 textFields[field.key] = input
             }
         }
@@ -77,6 +85,15 @@ final class NativeFormController: UITableViewController {
         ])
         return cell
     }
+    func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int { fields[pickerView.tag].options.count + 1 }
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? { row == 0 ? "선택해주세요" : fields[pickerView.tag].options[row - 1].0 }
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        let field = fields[pickerView.tag]
+        selectedValues[field.key] = row == 0 ? "" : field.options[row - 1].1
+        textFields[field.key]?.text = row == 0 ? "" : field.options[row - 1].0
+    }
+    @objc func endEditing() { view.endEditing(true) }
     @objc func close() { dismiss(animated: true) }
     @objc func submit() {
         guard !saving else { return }
@@ -84,7 +101,7 @@ final class NativeFormController: UITableViewController {
         view.endEditing(true)
         var values: [String: String] = [:]
         for field in fields {
-            let text = textFields[field.key]?.text ?? textViews[field.key]?.text ?? ""
+            let text = field.options.isEmpty ? (textFields[field.key]?.text ?? textViews[field.key]?.text ?? "") : (selectedValues[field.key] ?? "")
             values[field.key] = field.secure ? text : text.trimmingCharacters(in: .whitespacesAndNewlines)
             if field.required && values[field.key]?.isEmpty != false { notice("\(field.title)을 입력해주세요."); return }
         }

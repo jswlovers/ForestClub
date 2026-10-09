@@ -78,7 +78,7 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
     }
     func refreshBalance() {
         Service.shared.json(["api", "coins", "balance"]) { json, error in
-            if let coins = (json as? Record)?["coins"] as? Int { self.balanceLabel.text = "보유 \(coins)코인 · 발송 500코인 · 최대 200자" }
+            if let record = json as? Record, let coins = (record["available"] ?? record["coins"]) as? Int { self.balanceLabel.text = "보유 \(coins)코인 · 발송 500코인 · 최대 200자" }
             else if let error = error { self.balanceLabel.text = error }
         }
     }

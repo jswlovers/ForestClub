@@ -75,7 +75,7 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { filtered.count }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         let greeting = home ? "좋은 사람들과, 더 넓은 세상으로.\n\n추천 모임\n" : ""
-        return greeting + (Service.shared.live ? "현재 모집 현황" : "예시 모임 · 마이페이지에서 서버를 연결해주세요")
+        return greeting + (Service.shared.live ? "현재 모집 현황" : "서비스에 연결하지 못했습니다 · 예시 모임")
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
@@ -114,7 +114,7 @@ final class DetailController: UIViewController {
         info.numberOfLines = 0
         info.font = .preferredFont(forTextStyle: .body)
         info.text = "정원 \(event.capacity)명\n\n참가 문의를 남겨주시면 운영진이 일정과 참가 절차를 안내해드립니다."
-        if !Service.shared.live { info.text! += "\n\n현재 예시 모드입니다. 마이페이지에서 서버를 연결해주세요." }
+        if !Service.shared.live { info.text! += "\n\n현재 예시 모드입니다. 인터넷 연결을 확인한 후 다시 시도해주세요." }
         button.setTitle("참가 문의하기", for: .normal)
         button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
         button.isEnabled = Service.shared.live && event.remaining != 0
@@ -175,28 +175,25 @@ final class AccountController: UITableViewController {
         super.viewWillAppear(animated); tableView.reloadData()
         if !Service.shared.address.isEmpty { Service.shared.restoreUser { _ in self.tableView.reloadData() } }
     }
-    override func numberOfSections(in tableView: UITableView) -> Int { 3 }
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { section == 1 ? memberItems.count : 1 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 2 }
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { section == 0 ? memberItems.count : 1 }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if section == 0 { return "서비스 연결" }
-        if section == 1 { return Service.shared.user.map { "\($0)님, 반갑습니다" } ?? "한 번 로그인으로 모든 회원 기능 이용" }
+        if section == 0 { return Service.shared.user.map { "\($0)님, 반갑습니다" } ?? "한 번 로그인으로 모든 회원 기능 이용" }
         return "포레스트클럽"
     }
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        section == 1 ? "로그인 세션은 키체인에 보관됩니다. 로그아웃하거나 서버에서 세션이 만료되면 다시 로그인해주세요." : nil
+        section == 0 ? "로그인 세션은 키체인에 보관됩니다. 로그아웃하거나 서버에서 세션이 만료되면 다시 로그인해주세요." : nil
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
         cell.textLabel?.numberOfLines = 0; cell.detailTextLabel?.numberOfLines = 0; cell.accessoryType = .disclosureIndicator
-        if indexPath.section == 0 { cell.textLabel?.text = "서버 주소 설정"; cell.detailTextLabel?.text = Service.shared.address.isEmpty ? "서버 연결 전 · 예시 모임" : Service.shared.address }
-        else if indexPath.section == 1 { cell.textLabel?.text = memberItems[indexPath.row] }
+        if indexPath.section == 0 { cell.textLabel?.text = memberItems[indexPath.row] }
         else { cell.textLabel?.text = "전체 메뉴" }
         return cell
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true); guard !busy else { return }
-        if indexPath.section == 0 { serverPrompt(); return }
-        if indexPath.section == 2 { navigationController?.pushViewController(MenuController(), animated: true); return }
+        if indexPath.section == 1 { navigationController?.pushViewController(MenuController(), animated: true); return }
         let item = memberItems[indexPath.row]
         switch item {
         case "로그인": authPrompt(signup: false)
@@ -210,24 +207,13 @@ final class AccountController: UITableViewController {
         default: openNativeMenu(item)
         }
     }
-    func serverPrompt() {
-        let alert = UIAlertController(title: "서버 연결", message: "HTTPS 서버 루트 주소를 입력하세요. 시뮬레이터의 로컬 테스트에는 http://localhost:3000을 사용할 수 있습니다.", preferredStyle: .alert)
-        alert.addTextField { field in
-            field.placeholder = "https://서버주소"; field.text = Service.shared.address; field.keyboardType = .URL
-            field.autocapitalizationType = .none; field.autocorrectionType = .no
-        }
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "연결", style: .default) { _ in
-            self.busy = true
-            Service.shared.connect(alert.textFields?.first?.text ?? "") { error in
-                self.busy = false; self.tableView.reloadData(); self.notice(error ?? "서버에 연결되었습니다.")
-            }
-        })
-        present(alert, animated: true)
-    }
     func authPrompt(signup: Bool) {
         guard !Service.shared.address.isEmpty else { notice("서버를 먼저 연결해주세요."); return }
-        let form = NativeFormController.login(signup: signup) {
+        if signup {
+            navigationController?.pushViewController(SignupConsentController { self.navigationController?.popToViewController(self, animated: true); self.tableView.reloadData() }, animated: true)
+            return
+        }
+        let form = NativeFormController.login(signup: false) {
             self.navigationController?.popToViewController(self, animated: true); self.tableView.reloadData()
             if let error = Service.shared.persistenceError { self.notice(error) }
         }

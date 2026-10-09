@@ -23,7 +23,7 @@ final class CoinsController: UITableViewController {
         guard !loading else { return }; loading = true
         let group = DispatchGroup(); errorText = nil; charges = []; ledger = []; balance = "불러오는 중…"
         group.enter(); Service.shared.json(["api", "coins", "balance"]) { json, error in
-            if let value = (json as? Record)?["coins"] as? Int { self.balance = "\(value) 코인" } else { self.balance = "잔액 확인 실패"; self.errorText = error }; group.leave()
+            if let record = json as? Record, let value = (record["available"] ?? record["coins"]) as? Int { self.balance = "\(value) 코인" } else { self.balance = "잔액 확인 실패"; self.errorText = error }; group.leave()
         }
         group.enter(); Service.shared.json(["api", "coins", "charge-requests", "me"]) { json, error in self.charges = json as? [Record] ?? []; if let error = error { self.errorText = error }; group.leave() }
         group.enter(); Service.shared.json(["api", "coins", "ledger"]) { json, error in self.ledger = json as? [Record] ?? []; if let error = error { self.errorText = error }; group.leave() }
@@ -122,6 +122,24 @@ extension UIViewController {
                     Service.shared.json(["api", "applications"], body: values) { _, error in done(error) }
                 }, success: { self.navigationController?.popToViewController(self, animated: true); self.notice("멤버십 지원서가 접수되었습니다.") })
                 self.navigationController?.pushViewController(form, animated: true)
+            }
+        }
+    }
+}
+
+extension UIViewController {
+    func openMembershipStatus() {
+        requireLogin {
+            Service.shared.json(["api", "auth", "me"]) { json, error in
+                guard let user = json as? Record else { self.notice(error ?? "심사 상태를 확인하지 못했습니다."); return }
+                if let status = user["status"] as? String {
+                    let message = status == "pending" ? "회원가입이 멤버십 지원으로 접수되었습니다. 심사 승인 후 회원 서비스를 이용할 수 있습니다." : (status == "approved" ? "멤버십이 승인되었습니다." : string(user, "rejectedReason"))
+                    let controller = TextPageController(title: "내 지원 현황", sections: [("멤버십 가입 심사", statusText(status)), ("안내", message), ("내 정보", [string(user, "interest"), string(user, "golfExperience"), string(user, "region")].filter { !$0.isEmpty }.joined(separator: " · "))])
+                    self.navigationController?.pushViewController(controller, animated: true)
+                } else {
+                    let controller = RecordsController(title: "내 지원 현황", path: ["api", "applications", "me"], render: { row in (statusText(string(row, "status")), [string(row, "created_at"), string(row, "admin_note")].filter { !$0.isEmpty }.joined(separator: "\n")) })
+                    self.navigationController?.pushViewController(controller, animated: true)
+                }
             }
         }
     }
