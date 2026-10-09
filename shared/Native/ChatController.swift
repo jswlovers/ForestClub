@@ -38,8 +38,8 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
             input.heightAnchor.constraint(equalToConstant: 72), send.widthAnchor.constraint(equalToConstant: 62)
         ])
         let attachItem = UIBarButtonItem(title: "첨부", style: .plain, target: self, action: #selector(attach))
-        let callItem = UIBarButtonItem(title: "보이스톡", style: .plain, target: self, action: #selector(startCall))
-        callItem.accessibilityLabel = "보이스톡 걸기"
+        let callItem = UIBarButtonItem(title: "통화", style: .plain, target: self, action: #selector(startCall))
+        callItem.accessibilityLabel = "보이스톡 또는 페이스톡 걸기"
         navigationItem.rightBarButtonItems = [attachItem, callItem]
         loginObserver = NotificationCenter.default.addObserver(forName: .clubLoginChanged, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
@@ -103,7 +103,15 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
     }
     @objc func startCall() {
         guard !sending else { return }
-        CallMonitor.shared.place(partner: partnerId, partnerName: title ?? "", from: self) { self.reload(scroll: true) }
+        let menu = UIAlertController(title: "통화", message: "보이스톡은 메시지를 주고받은 상대와, 페이스톡은 보이스톡을 나눈 상대와 할 수 있어요.", preferredStyle: .actionSheet)
+        for kind in [CallKind.voice, .video] {
+            menu.addAction(UIAlertAction(title: "\(kind.icon) \(kind.title) (초당 \(ClubCall.coins(kind.costPerSecond))코인)", style: .default) { _ in
+                CallMonitor.shared.place(kind, partner: self.partnerId, partnerName: self.title ?? "", from: self) { self.reload(scroll: true) }
+            })
+        }
+        menu.addAction(UIAlertAction(title: "취소", style: .cancel))
+        menu.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItems?.last
+        present(menu, animated: true)
     }
     @objc func attach() {
         let picker = UIDocumentPickerViewController(documentTypes: ["public.data"], in: .import)
@@ -131,7 +139,7 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
         cell.textLabel?.numberOfLines = 0; cell.textLabel?.font = .preferredFont(forTextStyle: .body)
         cell.textLabel?.textColor = mine ? green : .black
         let call = ClubCall.isCall(row)
-        let label = call ? (string(row, "attachment_name") == "video" ? "페이스톡 · 웹사이트에서 받기" : "보이스톡 · 눌러서 참여") : string(row, "attachment_name")
+        let label = call ? "\(CallKind(row).title) · 눌러서 참여" : string(row, "attachment_name")
         cell.detailTextLabel?.text = [label, string(row, "created_at")].filter { !$0.isEmpty }.joined(separator: " · ")
         cell.detailTextLabel?.numberOfLines = 0
         cell.accessoryType = call || string(row, "attachment_url").hasPrefix("/api/messages/attachments/") ? .disclosureIndicator : .none

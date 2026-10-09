@@ -59,9 +59,10 @@ public final class MainActivity extends Activity {
     private boolean live, mutation;
     private int attachmentRecipient;
     private Runnable chatPoll, pendingCall;
+    private CallPolicy.Kind pendingKind;
     private boolean ringing;
-    private final java.util.HashSet<String> answeredCalls = new java.util.HashSet<>();
-    /** 앱이 열려 있는 동안 새 보이스톡 요청을 확인해 받기/거절 창을 띄운다. */
+    private final java.util.Set<String> answeredCalls = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    /** 앱이 열려 있는 동안 새 통화 요청을 확인해 받기/거절 창을 띄운다. */
     private final Runnable callPoll = new Runnable() { public void run() { pollIncomingCall(); main.postDelayed(this, 5000); } };
     private String eventType = "all", eventQuery = "";
     private JSONArray eventData = examples();
@@ -259,7 +260,7 @@ public final class MainActivity extends Activity {
             LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); body.addView(list);
             EditText input = new EditText(this); input.setHint("쪽지 내용"); input.setContentDescription("쪽지 내용"); input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE); input.setMinLines(2); body.addView(input);
             Runnable reload = () -> {
-                async(version, () -> api.get("api", "messages", "conversations", String.valueOf(partner)), value -> { JSONArray rows = ((JSONObject) value).optJSONArray("messages"); list.removeAllViews(); if (rows != null) for (int i = 0; i < rows.length(); i++) { JSONObject row = rows.optJSONObject(i); if (row == null) continue; String path = value(row, "attachment_url"); boolean call = "call".equals(value(row, "attachment_type")); String label = call ? ("video".equals(value(row, "attachment_name")) ? "페이스톡 · 웹사이트에서 받기" : "보이스톡 · 눌러서 참여") : value(row, "attachment_name"); card(list, (row.optInt("sender_id") == api.userId ? "나: " : "상대: ") + row.optString("body"), label + "\n" + value(row, "created_at"), call ? () -> joinCall(row, name) : path.startsWith("/api/messages/attachments/") ? () -> downloadAttachment(path, value(row, "attachment_name"), version) : null); } if (rows != null && rows.length() > 0) noticeCall(rows.optJSONObject(rows.length() - 1), partner, name); }, error -> state.setText(error.getMessage()));
+                async(version, () -> api.get("api", "messages", "conversations", String.valueOf(partner)), value -> { JSONArray rows = ((JSONObject) value).optJSONArray("messages"); list.removeAllViews(); if (rows != null) for (int i = 0; i < rows.length(); i++) { JSONObject row = rows.optJSONObject(i); if (row == null) continue; String path = value(row, "attachment_url"); boolean call = "call".equals(value(row, "attachment_type")); String label = call ? CallPolicy.Kind.of(value(row, "attachment_name")).title + " · 눌러서 참여" : value(row, "attachment_name"); card(list, (row.optInt("sender_id") == api.userId ? "나: " : "상대: ") + row.optString("body"), label + "\n" + value(row, "created_at"), call ? () -> joinCall(row, name) : path.startsWith("/api/messages/attachments/") ? () -> downloadAttachment(path, value(row, "attachment_name"), version) : null); } if (rows != null && rows.length() > 0) noticeCall(rows.optJSONObject(rows.length() - 1), partner, name); }, error -> state.setText(error.getMessage()));
                 async(version, () -> api.get("api", "coins", "balance"), value -> state.setText("보유 " + ((JSONObject) value).optInt("available", ((JSONObject) value).optInt("coins")) + "코인 · 발송 500코인 · 최대 200자"), error -> state.setText(error.getMessage()));
             };
             addButton("보내기", () -> {
@@ -267,7 +268,7 @@ public final class MainActivity extends Activity {
                 mutation = true; input.setEnabled(false);
                 mutate(version, () -> api.post(new JSONObject().put("recipientUserId", partner).put("body", message), "api", "messages"), result -> { mutation = false; input.setText(""); input.setEnabled(true); reload.run(); }, error -> { mutation = false; input.setEnabled(true); alert(error.getMessage()); });
             });
-            addButton("보이스톡 걸기", () -> placeCall(partner, name, reload));
+            addButton("보이스톡 · 페이스톡 걸기", () -> chooseCall(partner, name, reload));
             addButton("파일 첨부", () -> { attachmentRecipient = partner; Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(picker, 10); });
             reload.run(); chatPoll = new Runnable() { public void run() { if (generation == version && api.userId > 0) { reload.run(); main.postDelayed(this, 15000); } } }; main.postDelayed(chatPoll, 15000);
         }), true);
@@ -373,55 +374,61 @@ public final class MainActivity extends Activity {
     }
     private void pollIncomingCall() {
         if (api.userId == 0 || ringing || CallActivity.inCall || isFinishing()) return;
-        io.execute(() -> { try { JSONArray rows = (JSONArray) api.get("api", "messages", "conversations"); main.post(() -> {
+        io.execute(() -> { try { JSONArray rows = (JSONArray) api.get("api", "messages", "conversations");
             for (int i = 0; i < rows.length(); i++) { JSONObject row = rows.optJSONObject(i);
                 if (row == null || !"[통화 요청]".equals(row.optString("lastPreview")) || row.optBoolean("lastMine") || row.optInt("unread") == 0) continue;
-                if (offerCall(row.optInt("userId"), displayName(row), value(row, "lastAt"))) return; }
-        }); } catch (Exception ignored) { } });
+                int partner = row.optInt("userId"); String at = value(row, "lastAt");
+                if (!CallPolicy.isRecent(at, System.currentTimeMillis()) || answeredCalls.contains(partner + "|" + at)) continue;
+                // 보이스톡인지 페이스톡인지는 통화 요청 메시지에만 있으므로 대화를 읽어 확인한다.
+                JSONArray messages = ((JSONObject) api.get("api", "messages", "conversations", String.valueOf(partner))).optJSONArray("messages");
+                JSONObject call = messages == null || messages.length() == 0 ? null : messages.optJSONObject(messages.length() - 1);
+                String name = displayName(row); main.post(() -> noticeCall(call, partner, name)); return; }
+        } catch (Exception ignored) { } });
     }
     /** 대화창이 이미 읽음 처리한 통화 요청도 놓치지 않도록 새 메시지마다 확인한다. */
     private void noticeCall(JSONObject row, int partner, String name) {
-        if (row != null && "call".equals(value(row, "attachment_type")) && row.optInt("sender_id") == partner) offerCall(partner, name, value(row, "created_at"));
+        if (row != null && "call".equals(value(row, "attachment_type")) && row.optInt("sender_id") == partner) offerCall(row, partner, name);
     }
-    private boolean offerCall(int partner, String name, String at) {
-        String key = partner + "|" + at;
-        if (ringing || CallActivity.inCall || isFinishing() || !CallPolicy.isRecent(at, System.currentTimeMillis()) || !answeredCalls.add(key)) return false;
+    private void offerCall(JSONObject call, int partner, String name) {
+        String at = value(call, "created_at"); CallPolicy.Kind kind = CallPolicy.Kind.of(value(call, "attachment_name"));
+        if (ringing || CallActivity.inCall || isFinishing() || !CallPolicy.isRecent(at, System.currentTimeMillis()) || !answeredCalls.add(partner + "|" + at)) return;
         ringing = true;
-        new AlertDialog.Builder(this).setTitle("📞 보이스톡").setMessage(name + "님이 보이스톡을 걸었어요.").setCancelable(false)
-            .setNegativeButton("거절", (d, w) -> { ringing = false; io.execute(() -> { try { api.get("api", "messages", "conversations", String.valueOf(partner)); } catch (Exception ignored) { } }); })
-            .setPositiveButton("받기", (d, w) -> { ringing = false; io.execute(() -> {
-                try { JSONArray rows = ((JSONObject) api.get("api", "messages", "conversations", String.valueOf(partner))).optJSONArray("messages"); JSONObject call = null;
-                    for (int i = rows == null ? -1 : rows.length() - 1; i >= 0; i--) { JSONObject row = rows.optJSONObject(i); if (row != null && "call".equals(value(row, "attachment_type")) && row.optInt("sender_id") == partner) { call = row; break; } }
-                    final JSONObject found = call; main.post(() -> { if (found == null) alert("통화 요청을 찾지 못했습니다."); else joinCall(found, name); });
-                } catch (Exception e) { main.post(() -> alert(e.getMessage())); }
-            }); }).show();
-        return true;
+        new AlertDialog.Builder(this).setTitle(kind.icon + " " + kind.title).setMessage(name + "님이 " + kind.title + "을 걸었어요.").setCancelable(false)
+            .setNegativeButton("거절", (d, w) -> ringing = false)
+            .setPositiveButton("받기", (d, w) -> { ringing = false; joinCall(call, name); }).show();
     }
     /** 받은 통화 메시지로 들어간다. */
     private void joinCall(JSONObject row, String name) {
-        if ("video".equals(value(row, "attachment_name"))) { alert("페이스톡은 아직 앱에서 받을 수 없어요. 웹사이트에서 이용해주세요."); return; }
         String room = CallPolicy.roomUrl(value(row, "attachment_url")); if (room == null) { alert("통화방 주소가 올바르지 않습니다."); return; }
-        prepareCall(() -> openCall(room, name));
+        CallPolicy.Kind kind = CallPolicy.Kind.of(value(row, "attachment_name"));
+        prepareCall(kind, () -> openCall(room, kind, name));
     }
-    /** 상대에게 보이스톡을 건다. 통화방은 서버가 만들고 대화에 통화 요청 메시지로 남긴다. */
-    private void placeCall(int partner, String name, Runnable reload) {
-        prepareCall(() -> new AlertDialog.Builder(this).setTitle("보이스톡").setMessage(name + "님에게 보이스톡을 걸까요?\n통화방에 들어간 순간부터 초당 " + CallPolicy.COST_PER_SECOND + "코인이 사용됩니다.").setNegativeButton("취소", null)
+    private void chooseCall(int partner, String name, Runnable reload) {
+        CallPolicy.Kind[] kinds = CallPolicy.Kind.values(); String[] labels = new String[kinds.length];
+        for (int i = 0; i < kinds.length; i++) labels[i] = kinds[i].icon + " " + kinds[i].title + " (초당 " + CallPolicy.coins(kinds[i].costPerSecond) + "코인)";
+        new AlertDialog.Builder(this).setTitle("통화").setItems(labels, (d, which) -> placeCall(kinds[which], partner, name, reload)).setNegativeButton("취소", null).show();
+    }
+    /** 상대에게 보이스톡이나 페이스톡을 건다. 통화방은 서버가 만들고 대화에 통화 요청 메시지로 남긴다. */
+    private void placeCall(CallPolicy.Kind kind, int partner, String name, Runnable reload) {
+        prepareCall(kind, () -> new AlertDialog.Builder(this).setTitle(kind.title).setMessage(name + "님에게 " + kind.title + "을 걸까요?\n통화방에 들어간 순간부터 초당 " + CallPolicy.coins(kind.costPerSecond) + "코인이 사용됩니다.").setNegativeButton("취소", null)
             .setPositiveButton("걸기", (d, w) -> io.execute(() -> {
-                try { JSONObject result = (JSONObject) api.post(new JSONObject().put("recipientUserId", partner).put("kind", "call").put("callType", "voice"), "api", "messages");
+                try { JSONObject result = (JSONObject) api.post(new JSONObject().put("recipientUserId", partner).put("kind", "call").put("callType", kind.value), "api", "messages");
                     String room = CallPolicy.roomUrl(value(result, "attachmentUrl"));
-                    main.post(() -> { reload.run(); if (room == null) alert("통화방을 만들지 못했어요. 잠시 후 다시 시도해주세요."); else openCall(room, name); });
+                    main.post(() -> { reload.run(); if (room == null) alert("통화방을 만들지 못했어요. 잠시 후 다시 시도해주세요."); else openCall(room, kind, name); });
                 } catch (Exception e) { main.post(() -> alert(e.getMessage())); }
             })).show());
     }
-    /** 코인 진입 잔액과 마이크 권한을 차례로 확인한다. */
-    private void prepareCall(Runnable action) {
+    /** 코인 진입 잔액과 마이크(페이스톡은 카메라도) 권한을 차례로 확인한다. */
+    private void prepareCall(CallPolicy.Kind kind, Runnable action) {
         if (CallActivity.inCall) return;
         io.execute(() -> {
             try { JSONObject info = (JSONObject) api.get("api", "calls", "can-enter");
                 main.post(() -> {
                     if (!info.optBoolean("allowed")) { alert("코인이 " + CallPolicy.coins(info.optLong("entryMin", 3000)) + "개 이하면 통화를 시작할 수 없어요. 충전 후 다시 시도해주세요."); return; }
-                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { action.run(); return; }
-                    pendingCall = action; requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 21);
+                    ArrayList<String> missing = new ArrayList<>();
+                    for (String permission : kind.permissions()) if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) missing.add(permission);
+                    if (missing.isEmpty()) { action.run(); return; }
+                    pendingCall = action; pendingKind = kind; requestPermissions(missing.toArray(new String[0]), 21);
                 });
             } catch (Exception e) { main.post(() -> alert(e.getMessage())); }
         });
@@ -429,13 +436,14 @@ public final class MainActivity extends Activity {
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(request, permissions, results);
         if (request != 21) return;
-        Runnable action = pendingCall; pendingCall = null;
-        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED && action != null) action.run();
-        else alert("마이크를 허용해야 보이스톡을 이용할 수 있어요. 설정 > 앱 > 포레스트클럽 > 권한에서 마이크를 허용해주세요.");
+        Runnable action = pendingCall; CallPolicy.Kind kind = pendingKind; pendingCall = null; pendingKind = null;
+        boolean granted = results.length > 0; for (int result : results) granted &= result == PackageManager.PERMISSION_GRANTED;
+        if (granted && action != null) action.run();
+        else if (kind != null) alert((kind == CallPolicy.Kind.VIDEO ? "마이크와 카메라" : "마이크") + "를 허용해야 " + kind.title + "을 이용할 수 있어요. 설정 > 앱 > 포레스트클럽 > 권한에서 허용해주세요.");
     }
-    private void openCall(String room, String name) {
+    private void openCall(String room, CallPolicy.Kind kind, String name) {
         if (CallActivity.inCall) return;
-        startActivityForResult(new Intent(this, CallActivity.class).putExtra(CallActivity.EXTRA_ROOM, room).putExtra(CallActivity.EXTRA_NAME, name), 20);
+        startActivityForResult(new Intent(this, CallActivity.class).putExtra(CallActivity.EXTRA_ROOM, room).putExtra(CallActivity.EXTRA_KIND, kind.value).putExtra(CallActivity.EXTRA_NAME, name), 20);
     }
     private void downloadAttachment(String path, String filename, int version) {
         async(version, () -> { byte[] bytes = api.attachment(path); File folder = new File(getCacheDir(), "attachments"); if (!folder.exists() && !folder.mkdirs()) throw new Exception("파일을 저장하지 못했습니다."); String clean = new File(filename).getName(); File file = new File(folder, java.util.UUID.randomUUID() + "-" + (clean.isEmpty() ? "attachment" : clean)); try (FileOutputStream output = new FileOutputStream(file)) { output.write(bytes); } return file; }, value -> {

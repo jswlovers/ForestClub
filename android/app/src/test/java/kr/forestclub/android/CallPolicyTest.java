@@ -29,6 +29,13 @@ public class CallPolicyTest {
         assertFalse(CallPolicy.isRecent("2026-10-09 03:00:00", sent + 120_000));
         assertFalse(CallPolicy.isRecent("", sent));
     }
+    @Test public void callKindFollowsServerAttachmentName() {
+        assertEquals(CallPolicy.Kind.VIDEO, CallPolicy.Kind.of("video"));
+        assertEquals(CallPolicy.Kind.VOICE, CallPolicy.Kind.of("voice"));
+        assertEquals(CallPolicy.Kind.VOICE, CallPolicy.Kind.of(null));
+        assertEquals(100, CallPolicy.Kind.VIDEO.costPerSecond);
+        assertEquals(2, CallPolicy.Kind.VIDEO.permissions().length);
+    }
     /** iOS와 Android가 같은 통화 페이지를 쓰도록 공유 원본과 Android 자산이 같은지 확인한다. */
     @Test public void callPageMatchesSharedCopy() throws Exception {
         assertArrayEquals(Files.readAllBytes(Paths.get("../../shared/Native/ForestCall.html")), Files.readAllBytes(Paths.get("src/main/assets/ForestCall.html")));

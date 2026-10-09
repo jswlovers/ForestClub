@@ -6,9 +6,16 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/** 보이스톡 정책. 단가와 진입·유지 최소 잔액은 server/call-pricing.js가 기준이며 서버가 다시 검사한다. */
+/** 보이스톡·페이스톡 정책. 단가와 진입·유지 최소 잔액은 server/call-pricing.js가 기준이며 서버가 다시 검사한다. */
 final class CallPolicy {
-    static final int COST_PER_SECOND = 10;
+    enum Kind {
+        VOICE("voice", "보이스톡", "📞", 10), VIDEO("video", "페이스톡", "📹", 100);
+        final String value, title, icon; final int costPerSecond;
+        Kind(String value, String title, String icon, int costPerSecond) { this.value = value; this.title = title; this.icon = icon; this.costPerSecond = costPerSecond; }
+        /** 서버는 통화 요청 메시지의 attachment_name에 voice/video를 기록한다. */
+        static Kind of(String value) { return "video".equals(value) ? VIDEO : VOICE; }
+        String[] permissions() { return this == VIDEO ? new String[]{"android.permission.RECORD_AUDIO", "android.permission.CAMERA"} : new String[]{"android.permission.RECORD_AUDIO"}; }
+    }
     static final long RING_MILLIS = 60_000, INCOMING_WINDOW_MILLIS = 90_000;
     private CallPolicy() { }
     /** 서버가 만든 Daily.co 통화방 주소만 허용한다. */

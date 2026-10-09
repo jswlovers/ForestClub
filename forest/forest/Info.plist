@@ -7,6 +7,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>회원과 페이스톡으로 영상 통화하려면 카메라 접근이 필요합니다.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>회원과 보이스톡으로 통화하려면 마이크 접근이 필요합니다.</string>
 </dict>
