@@ -45,7 +45,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
-    static final int GREEN = Color.rgb(33, 75, 56), INK = Color.rgb(28, 37, 31), MUTED = Color.rgb(94, 107, 98);
+    // 웹(public/assets/style.css)과 같은 색: 진녹색·골드·크림 배경. 제목은 세리프(웹의 Playfair Display 자리).
+    static final int GREEN = Color.rgb(27, 51, 40), GREEN_DEEP = Color.rgb(19, 37, 32), GOLD = Color.rgb(184, 146, 79), GOLD_LIGHT = Color.rgb(230, 211, 171),
+        CREAM = Color.rgb(247, 244, 236), INK = Color.rgb(32, 38, 31), MUTED = Color.rgb(107, 114, 104), LINE = Color.rgb(227, 221, 205);
+    static final Typeface SERIF = Typeface.create("serif", Typeface.BOLD);
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newFixedThreadPool(3);
     private final ArrayDeque<Screen> history = new ArrayDeque<>();
@@ -80,18 +83,20 @@ public final class MainActivity extends Activity {
         api = new ApiClient(new AndroidSessionStore(this), BuildConfig.DEBUG); CallActivity.api = api;
         String server = BuildConfig.DEBUG ? getPreferences(MODE_PRIVATE).getString("testServer", "https://forest.sean2022.one:8888") : "https://forest.sean2022.one:8888";
         if (!server.isEmpty()) { try { api.setServer(server); } catch (Exception ignored) { } }
-        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.rgb(245, 247, 244));
+        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(CREAM);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             if (Build.VERSION.SDK_INT >= 30) { Insets i = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime()); view.setPadding(i.left, i.top, i.right, i.bottom); }
             else view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets;
         });
-        toolbar = new LinearLayout(this); toolbar.setGravity(Gravity.CENTER_VERTICAL); toolbar.setPadding(dp(8), dp(8), dp(12), dp(8));
-        back = button("‹", this::goBack); back.setContentDescription("뒤로"); toolbar.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        title = text("포레스트클럽", 19, GREEN); title.setTypeface(null, Typeface.BOLD); toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        Button menu = button("전체 메뉴", () -> openMenu()); toolbar.addView(menu); root.addView(toolbar);
+        toolbar = new LinearLayout(this); toolbar.setGravity(Gravity.CENTER_VERTICAL); toolbar.setPadding(dp(8), dp(6), dp(12), dp(6));
+        back = button("‹", this::goBack); back.setTextSize(26); back.setContentDescription("뒤로"); toolbar.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        title = text("포레스트클럽", 20, GREEN); title.setTypeface(SERIF); title.setPadding(dp(10), 0, 0, 0); toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        Button menu = button("전체 메뉴", () -> openMenu()); menu.setTextColor(GOLD); menu.setTextSize(13); toolbar.addView(menu); root.addView(toolbar);
+        View divider = new View(this); divider.setBackgroundColor(LINE); root.addView(divider, new LinearLayout.LayoutParams(-1, 1));
         scroll = new ScrollView(this); scroll.setFillViewport(true); body = new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL); body.setPadding(dp(18), dp(16), dp(18), dp(24)); scroll.addView(body); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        View tabLine = new View(this); tabLine.setBackgroundColor(LINE); root.addView(tabLine, new LinearLayout.LayoutParams(-1, 1));
         tabs = new LinearLayout(this); tabs.setBackgroundColor(Color.WHITE); String[] labels = {"홈", "모임", "마이페이지", "전체 메뉴"};
         for (int i = 0; i < labels.length; i++) { final int tab = i; Button item = button(labels[i], () -> selectTab(tab)); item.setTextSize(12); tabs.addView(item, new LinearLayout.LayoutParams(0, dp(58), 1)); }
         root.addView(tabs); setContentView(root); root.requestApplyInsets();
@@ -105,13 +110,27 @@ public final class MainActivity extends Activity {
     private int dp(float value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     private TextView text(String value, int size, int color) { TextView view = new TextView(this); view.setText(value); view.setTextSize(size); view.setTextColor(color); view.setPadding(0, dp(6), 0, dp(6)); return view; }
     private GradientDrawable box(int color, int radius) { GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
-    private Button button(String label, Runnable action) { Button b = new Button(this); b.setText(label); b.setAllCaps(false); b.setTextColor(GREEN); b.setOnClickListener(v -> action.run()); return b; }
-    private void addButton(String label, Runnable action) { Button b = button(label, action); b.setMinHeight(dp(48)); body.addView(b, new LinearLayout.LayoutParams(-1, -2)); }
-    private void section(String label) { TextView v = text(label, 21, INK); v.setTypeface(null, Typeface.BOLD); v.setPadding(0, dp(18), 0, dp(10)); body.addView(v); }
-    private void note(String value) { body.addView(text(value, 14, MUTED)); }
+    private GradientDrawable outlined(int fill, int stroke, int radius) { GradientDrawable d = box(fill, radius); d.setStroke(dp(1), stroke); return d; }
+    /** 기본 버튼: 회색 배경 없는 글자 버튼(툴바·탭·필터). */
+    private Button button(String label, Runnable action) {
+        Button b = new Button(this); b.setText(label); b.setAllCaps(false); b.setTextColor(GREEN); b.setBackground(null); b.setStateListAnimator(null);
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); b.setOnClickListener(v -> action.run()); return b;
+    }
+    /** 웹의 주 버튼: 진녹색 바탕, 흰 글씨, 알약 모양. */
+    private Button primary(Button b) { b.setTextColor(Color.WHITE); b.setTextSize(15); b.setBackground(box(GREEN, 26)); b.setMinHeight(dp(52)); b.setPadding(dp(22), 0, dp(22), 0); return b; }
+    /** 보조 버튼: 흰 바탕에 얇은 테두리. */
+    private Button outline(Button b) { b.setTextColor(GREEN); b.setTextSize(15); b.setBackground(outlined(Color.WHITE, LINE, 26)); b.setMinHeight(dp(52)); b.setPadding(dp(22), 0, dp(22), 0); return b; }
+    private LinearLayout.LayoutParams spaced() { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2); p.topMargin = dp(6); p.bottomMargin = dp(6); return p; }
+    private void addButton(String label, Runnable action) { body.addView(outline(button(label, action)), spaced()); }
+    private void addPrimary(String label, Runnable action) { body.addView(primary(button(label, action)), spaced()); }
+    private void section(String label) { TextView v = text(label, 22, GREEN); v.setTypeface(SERIF); v.setPadding(0, dp(22), 0, dp(10)); body.addView(v); }
+    private void note(String value) { TextView v = text(value, 14, MUTED); v.setLineSpacing(dp(3), 1); body.addView(v); }
+    /** 웹 섹션 위의 작은 영문 라벨(예: GOLF GATHERING). */
+    private TextView eyebrow(String value) { TextView v = text(value, 12, GOLD); v.setTypeface(Typeface.DEFAULT_BOLD); v.setLetterSpacing(0.2f); return v; }
+    private void styleInput(EditText e) { e.setBackground(outlined(Color.WHITE, LINE, 14)); e.setPadding(dp(14), dp(12), dp(14), dp(12)); e.setTextColor(INK); e.setHintTextColor(MUTED); e.setTextSize(15); }
     private void card(LinearLayout into, String name, String detail, Runnable action) {
-        LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setPadding(dp(16), dp(12), dp(16), dp(12)); card.setBackground(box(Color.WHITE, 14));
-        TextView heading = text(name, 17, INK); heading.setTypeface(null, Typeface.BOLD); card.addView(heading); card.addView(text(detail, 14, MUTED));
+        LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setPadding(dp(18), dp(14), dp(18), dp(14)); card.setBackground(outlined(Color.WHITE, LINE, 18));
+        TextView heading = text(name, 17, INK); heading.setTypeface(SERIF); card.addView(heading); TextView sub = text(detail, 13, MUTED); sub.setLineSpacing(dp(2), 1); card.addView(sub);
         if (action != null) { card.setOnClickListener(v -> action.run()); card.setFocusable(true); card.setContentDescription(name + ", " + detail); }
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2); p.bottomMargin = dp(12); into.addView(card, p);
     }
@@ -123,7 +142,7 @@ public final class MainActivity extends Activity {
     private void goBack() { if (history.isEmpty()) finish(); else show(history.pop(), false); }
     private void selectTab(int tab) {
         history.clear(); activeTab = tab;
-        for (int i = 0; i < tabs.getChildCount(); i++) ((Button) tabs.getChildAt(i)).setTextColor(i == tab ? GREEN : MUTED);
+        for (int i = 0; i < tabs.getChildCount(); i++) { Button item = (Button) tabs.getChildAt(i); item.setTextColor(i == tab ? GREEN : MUTED); item.setTypeface(i == tab ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT); }
         if (tab == 0) show(new Screen("포레스트클럽", this::home), false);
         else if (tab == 1) show(new Screen("함께할 모임", this::events), false);
         else if (tab == 2) show(new Screen("마이페이지", this::account), false);
@@ -146,16 +165,25 @@ public final class MainActivity extends Activity {
         async(generation, () -> api.get("api", "auth", "me"), value -> { action.run(); }, error -> { if (error instanceof ApiClient.ApiException && ((ApiClient.ApiException) error).status == 401) login(false, action); else alert(error.getMessage()); });
     }
     private void home(int version) {
-        TextView hero = text("FOREST CLUB\n\n좋은 사람들과,\n더 넓은 세상으로.\n\n골프와 여행, 함께하는 취향", 27, Color.WHITE); hero.setPadding(dp(24), dp(24), dp(24), dp(24)); hero.setBackground(box(GREEN, 20)); body.addView(hero);
-        addButton("모임 둘러보기", () -> selectTab(1)); section("추천 모임");
+        // 웹 첫 화면과 같은 진녹색 소개 카드
+        LinearLayout hero = new LinearLayout(this); hero.setOrientation(LinearLayout.VERTICAL); hero.setPadding(dp(26), dp(28), dp(26), dp(28));
+        GradientDrawable heroBg = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{GREEN, GREEN_DEEP}); heroBg.setCornerRadius(dp(22)); hero.setBackground(heroBg);
+        hero.addView(eyebrow("FOREST CLUB"));
+        TextView headline = text("좋은 사람들과,\n더 넓은 세상으로.", 28, Color.WHITE); headline.setTypeface(SERIF); headline.setLineSpacing(dp(4), 1); headline.setPadding(0, dp(10), 0, dp(10)); hero.addView(headline);
+        hero.addView(text("골프와 여행, 함께하는 취향", 14, GOLD_LIGHT));
+        body.addView(hero);
+        addPrimary("모임 둘러보기", () -> selectTab(1)); section("추천 모임");
         LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); body.addView(list); fillEvents(list, eventData, true);
         if (!api.server().isEmpty()) async(version, () -> api.get("api", "events"), value -> { live = true; eventData = (JSONArray) value; fillEvents(list, eventData, true); }, error -> { live = false; note("서버 연결 실패 · 예시 모임입니다."); });
         else note("예시 모임 · 인터넷 연결을 확인해주세요.");
     }
     private void events(int version) {
         LinearLayout filters = new LinearLayout(this); String[] labels = {"전체", "골프", "여행"}; String[] keys = {"all", "golf", "travel"};
-        for (int i = 0; i < 3; i++) { final String key = keys[i]; Button b = button(labels[i], () -> { eventType = key; show(current, false); }); b.setTextColor(eventType.equals(key) ? GREEN : MUTED); filters.addView(b, new LinearLayout.LayoutParams(0, -2, 1)); } body.addView(filters);
-        EditText search = new EditText(this); search.setHint("모임 검색"); search.setSingleLine(true); search.setText(eventQuery); body.addView(search);
+        for (int i = 0; i < 3; i++) { final String key = keys[i]; boolean on = eventType.equals(key); Button b = button(labels[i], () -> { eventType = key; show(current, false); });
+            b.setTextColor(on ? Color.WHITE : MUTED); b.setBackground(on ? box(GREEN, 20) : outlined(Color.WHITE, LINE, 20)); b.setMinHeight(dp(40)); b.setMinimumHeight(dp(40));
+            LinearLayout.LayoutParams chip = new LinearLayout.LayoutParams(0, dp(42), 1); chip.rightMargin = i < 2 ? dp(8) : 0; filters.addView(b, chip); } body.addView(filters);
+        EditText search = new EditText(this); search.setHint("모임 검색"); search.setSingleLine(true); search.setText(eventQuery); styleInput(search);
+        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(-1, -2); searchParams.topMargin = dp(12); searchParams.bottomMargin = dp(12); body.addView(search, searchParams);
         LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); body.addView(list); fillEvents(list, eventData, false);
         search.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s, int st, int c, int a) {} public void onTextChanged(CharSequence s, int st, int before, int count) { eventQuery = s.toString(); fillEvents(list, eventData, false); } public void afterTextChanged(Editable s) {} });
         addButton("모집 현황 새로고침", () -> show(current, false));
@@ -173,12 +201,15 @@ public final class MainActivity extends Activity {
     }
     private void event(JSONObject row) {
         show(new Screen("모임 안내", version -> {
-            section(displayName(row)); note("정원 " + row.optInt("capacity") + "명"); note("참가 문의를 남겨주시면 운영진이 일정과 참가 절차를 안내해드립니다.");
+            TextView label = eyebrow(row.optString("type").equals("golf") ? "GOLF GATHERING" : "TRAVEL GATHERING"); label.setPadding(0, dp(12), 0, 0); body.addView(label);
+            TextView heading = text(displayName(row), 27, GREEN); heading.setTypeface(SERIF); heading.setPadding(0, dp(6), 0, dp(12)); body.addView(heading);
+            note("정원 " + row.optInt("capacity") + "명"); note("참가 문의를 남겨주시면 운영진이 일정과 참가 절차를 안내해드립니다.");
             if (!live) note("예시 모임입니다. 서버 연결 후 문의할 수 있습니다.");
             Button interest = button("참가 문의하기", () -> protectedAction(() -> {
                 if (mutation) return; mutation = true;
                 mutate(version, () -> api.post(new JSONObject(), "api", "events", displayName(row), "interest"), value -> { mutation = false; alert("참가 문의가 접수되었습니다."); show(current, false); }, error -> { mutation = false; alert(error.getMessage()); });
-            })); interest.setEnabled(live && row.optInt("remaining", 1) > 0); body.addView(interest);
+            })); primary(interest); interest.setEnabled(live && row.optInt("remaining", 1) > 0); if (!interest.isEnabled()) interest.setAlpha(0.45f);
+            LinearLayout.LayoutParams first = spaced(); first.topMargin = dp(22); body.addView(interest, first);
             addButton("동행할 회원 찾기", () -> protectedAction(() -> members(row)));
         }), true);
     }
@@ -208,9 +239,9 @@ public final class MainActivity extends Activity {
     private void form(String heading, ArrayList<Field> fields, String explanation, String action, Submit submit, Runnable success) {
         show(new Screen(heading, version -> {
             final int boundUser = api.userId; Map<String, EditText> inputs = new LinkedHashMap<>(); Map<String, Spinner> choices = new LinkedHashMap<>();
-            for (Field f : fields) { body.addView(text(f.label + (f.required ? " *" : ""), 14, MUTED));
+            for (Field f : fields) { TextView fieldLabel = text(f.label + (f.required ? " *" : ""), 13, MUTED); fieldLabel.setPadding(dp(2), dp(12), 0, dp(4)); body.addView(fieldLabel);
                 if (f.options != null) { Spinner picker = new Spinner(this); ArrayList<String> labels = new ArrayList<>(); labels.add("선택해주세요"); for (String[] option : f.options) labels.add(option[0]); picker.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels)); picker.setContentDescription(f.label); body.addView(picker); choices.put(f.key, picker); for (int i = 0; i < f.options.length; i++) if (f.options[i][1].equals(f.value)) picker.setSelection(i + 1); picker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() { public void onNothingSelected(android.widget.AdapterView<?> p) {} public void onItemSelected(android.widget.AdapterView<?> p, View v, int position, long id) { f.value = position == 0 ? "" : f.options[position - 1][1]; } }); continue; }
-                EditText e = new EditText(this); e.setHint(f.label); e.setContentDescription(f.label); e.setText(f.value); e.setInputType(f.type | (f.multiline ? InputType.TYPE_TEXT_FLAG_MULTI_LINE : 0)); e.setSingleLine(!f.multiline); if (f.multiline) e.setMinLines(3); body.addView(e); inputs.put(f.key, e);
+                EditText e = new EditText(this); e.setHint(f.label); e.setContentDescription(f.label); e.setText(f.value); e.setInputType(f.type | (f.multiline ? InputType.TYPE_TEXT_FLAG_MULTI_LINE : 0)); e.setSingleLine(!f.multiline); if (f.multiline) e.setMinLines(3); styleInput(e); body.addView(e); inputs.put(f.key, e);
                 e.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s, int st, int c, int a) {} public void onTextChanged(CharSequence s, int st, int before, int count) { if (!f.key.equals("password")) f.value = s.toString(); } public void afterTextChanged(Editable s) {} }); }
             note(explanation);
             Button save = button(action, () -> {
@@ -222,7 +253,7 @@ public final class MainActivity extends Activity {
                 ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(root.getWindowToken(), 0);
                 mutation = true; for (EditText e : inputs.values()) e.setEnabled(false);
                 mutate(version, () -> submit.send(values), result -> { mutation = false; success.run(); }, error -> { mutation = false; for (EditText e : inputs.values()) e.setEnabled(true); alert(error.getMessage()); });
-            }); body.addView(save);
+            }); primary(save); LinearLayout.LayoutParams saveParams = spaced(); saveParams.topMargin = dp(20); body.addView(save, saveParams);
         }), true);
     }
     private void login(boolean signup, Runnable after) {
@@ -258,12 +289,12 @@ public final class MainActivity extends Activity {
         show(new Screen(name, version -> {
             TextView state = text("쪽지 1건당 500코인 · 최대 200자", 14, MUTED); body.addView(state);
             LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); body.addView(list);
-            EditText input = new EditText(this); input.setHint("쪽지 내용"); input.setContentDescription("쪽지 내용"); input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE); input.setMinLines(2); body.addView(input);
+            EditText input = new EditText(this); input.setHint("쪽지 내용"); input.setContentDescription("쪽지 내용"); input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE); input.setMinLines(2); styleInput(input); body.addView(input, spaced());
             Runnable reload = () -> {
                 async(version, () -> api.get("api", "messages", "conversations", String.valueOf(partner)), value -> { JSONArray rows = ((JSONObject) value).optJSONArray("messages"); list.removeAllViews(); if (rows != null) for (int i = 0; i < rows.length(); i++) { JSONObject row = rows.optJSONObject(i); if (row == null) continue; String path = value(row, "attachment_url"); boolean call = "call".equals(value(row, "attachment_type")); String label = call ? CallPolicy.Kind.of(value(row, "attachment_name")).title + " · 눌러서 참여" : value(row, "attachment_name"); card(list, (row.optInt("sender_id") == api.userId ? "나: " : "상대: ") + row.optString("body"), label + "\n" + value(row, "created_at"), call ? () -> joinCall(row, name) : path.startsWith("/api/messages/attachments/") ? () -> downloadAttachment(path, value(row, "attachment_name"), version) : null); } if (rows != null && rows.length() > 0) noticeCall(rows.optJSONObject(rows.length() - 1), partner, name); }, error -> state.setText(error.getMessage()));
                 async(version, () -> api.get("api", "coins", "balance"), value -> state.setText("보유 " + ((JSONObject) value).optInt("available", ((JSONObject) value).optInt("coins")) + "코인 · 발송 500코인 · 최대 200자"), error -> state.setText(error.getMessage()));
             };
-            addButton("보내기", () -> {
+            addPrimary("보내기", () -> {
                 String message = input.getText().toString().trim(); if (mutation || message.isEmpty()) return; if (message.length() > 200) { alert("쪽지는 200자 이하로 입력해주세요."); return; }
                 mutation = true; input.setEnabled(false);
                 mutate(version, () -> api.post(new JSONObject().put("recipientUserId", partner).put("body", message), "api", "messages"), result -> { mutation = false; input.setText(""); input.setEnabled(true); reload.run(); }, error -> { mutation = false; input.setEnabled(true); alert(error.getMessage()); });
@@ -280,8 +311,8 @@ public final class MainActivity extends Activity {
             note("필수 동의 후 회원 정보를 입력합니다.");
             Button next = button("다음", () -> signupIdentity(agreed, after)); next.setEnabled(agreed[0] && agreed[1] && agreed[2]);
             String[] labels = {"[필수] 만 19세 이상입니다", "[필수] 이용약관에 동의합니다", "[필수] 개인정보 수집·이용에 동의합니다", "[선택] 광고성 정보 수신에 동의합니다"};
-            for (int i = 0; i < labels.length; i++) { final int index = i; CheckBox check = new CheckBox(this); check.setText(labels[i]); check.setTextColor(INK); check.setChecked(agreed[index]); check.setOnCheckedChangeListener((b, checked) -> { agreed[index] = checked; next.setEnabled(agreed[0] && agreed[1] && agreed[2]); }); body.addView(check); }
-            addButton("이용약관 전문", () -> document("terms.html", "이용약관")); addButton("개인정보 처리방침 전문", () -> document("privacy.html", "개인정보 처리방침")); body.addView(next);
+            for (int i = 0; i < labels.length; i++) { final int index = i; CheckBox check = new CheckBox(this); check.setText(labels[i]); check.setTextColor(INK); check.setButtonTintList(android.content.res.ColorStateList.valueOf(GREEN)); check.setPadding(dp(4), dp(8), 0, dp(8)); check.setChecked(agreed[index]); check.setOnCheckedChangeListener((b, checked) -> { agreed[index] = checked; next.setEnabled(agreed[0] && agreed[1] && agreed[2]); }); body.addView(check); }
+            addButton("이용약관 전문", () -> document("terms.html", "이용약관")); addButton("개인정보 처리방침 전문", () -> document("privacy.html", "개인정보 처리방침")); primary(next); LinearLayout.LayoutParams nextParams = spaced(); nextParams.topMargin = dp(18); body.addView(next, nextParams);
         }), true);
     }
     private void document(String name, String heading) {
@@ -334,7 +365,7 @@ public final class MainActivity extends Activity {
     private void application() { async(generation, () -> api.get("api", "auth", "me"), response -> form("멤버십 지원서", profileFields((JSONObject) response, true), "온라인 지원 → 서류 심사 → 멤버 인터뷰 → 승인 및 웰컴", "지원", values -> api.post(values, "api", "applications"), () -> { goBack(); alert("멤버십 지원서가 접수되었습니다."); })); }
     private void coins() {
         show(new Screen("코인", version -> {
-            section("보유 코인"); TextView balance = text("불러오는 중…", 25, GREEN); body.addView(balance); note("쪽지 1건당 500코인 · 1코인 = 1원");
+            section("보유 코인"); TextView balance = text("불러오는 중…", 32, GREEN); balance.setTypeface(SERIF); body.addView(balance); note("쪽지 1건당 500코인 · 1코인 = 1원");
             addButton("충전 신청", () -> { ArrayList<Field> fields = new ArrayList<>(); fields.add(new Field("amountKrw", "충전 금액 (원)", "", true, InputType.TYPE_CLASS_NUMBER, false));
                 form("코인 충전 신청", fields, "최소 1,000원 · 무통장입금 신청입니다. 운영진이 입금을 확인하고 승인하면 코인이 지급됩니다.", "신청", values -> { long amount; try { amount = Long.parseLong(values.getString("amountKrw")); } catch (Exception e) { throw new ApiClient.ApiException(0, "금액을 확인해주세요."); } if (amount < 1000 || amount > 1000000000) throw new ApiClient.ApiException(0, "1,000원 이상 10억원 이하로 입력해주세요."); return api.post(new JSONObject().put("amountKrw", amount).put("provider", "manual"), "api", "coins", "charge-requests"); }, () -> { goBack(); alert("충전 신청을 접수했습니다. 운영진의 확인과 승인을 기다려주세요."); }); });
             addButton("충전 내역", () -> records("충전 신청 내역", new String[]{"api", "coins", "charge-requests", "me"}, row -> new String[]{row.optLong("amount_krw") + "원 · " + status(row.optString("status")), value(row, "admin_note") + "\n" + value(row, "created_at")}, null));

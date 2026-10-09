@@ -1,6 +1,6 @@
 import UIKit
 
-let green = UIColor(red: 0.12, green: 0.28, blue: 0.22, alpha: 1)
+let green = ClubTheme.forest
 
 struct Event: Decodable {
     let id: String
@@ -58,6 +58,7 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
         refreshControl?.addTarget(self, action: #selector(refresh), for: .valueChanged)
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 90
+        if home { tableView.tableHeaderView = ClubTheme.heroView(width: view.bounds.width) }
         if !Service.shared.address.isEmpty { refresh() }
     }
     override func viewWillAppear(_ animated: Bool) { super.viewWillAppear(animated); reload() }
@@ -74,19 +75,20 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
     override func numberOfSections(in tableView: UITableView) -> Int { 1 }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { filtered.count }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        let greeting = home ? "좋은 사람들과, 더 넓은 세상으로.\n\n추천 모임\n" : ""
-        return greeting + (Service.shared.live ? "현재 모집 현황" : "서비스에 연결하지 못했습니다 · 예시 모임")
+        let heading = home ? "추천 모임 · " : ""
+        return heading + (Service.shared.live ? "현재 모집 현황" : "서비스에 연결하지 못했습니다 · 예시 모임")
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
         let event = filtered[indexPath.row]
         cell.textLabel?.text = event.name
         cell.textLabel?.numberOfLines = 0
-        cell.textLabel?.font = .preferredFont(forTextStyle: .headline)
-        cell.textLabel?.adjustsFontForContentSizeCategory = true
+        cell.textLabel?.font = ClubTheme.serif(17)
+        cell.textLabel?.textColor = ClubTheme.ink
         cell.detailTextLabel?.text = (event.type == "golf" ? "골프" : "여행") + " · 정원 \(event.capacity)명" + (event.remaining.map { " · 남은 자리 \($0)명" } ?? " · 예시")
         cell.detailTextLabel?.numberOfLines = 0
         cell.detailTextLabel?.font = .preferredFont(forTextStyle: .caption1)
+        cell.detailTextLabel?.textColor = ClubTheme.muted
         cell.accessoryType = .disclosureIndicator
         return cell
     }
@@ -104,27 +106,34 @@ final class DetailController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "모임 안내"
-        view.backgroundColor = .white
+        view.backgroundColor = ClubTheme.cream
+        let eyebrow = UILabel()
+        eyebrow.attributedText = NSAttributedString(string: event.type == "golf" ? "GOLF GATHERING" : "TRAVEL GATHERING", attributes: [.kern: 2, .foregroundColor: ClubTheme.gold, .font: UIFont.systemFont(ofSize: 12, weight: .bold)])
         let name = UILabel()
         name.text = event.name
-        name.font = .preferredFont(forTextStyle: .title1)
+        name.font = ClubTheme.serif(28)
         name.numberOfLines = 0
         name.textColor = green
         let info = UILabel()
         info.numberOfLines = 0
         info.font = .preferredFont(forTextStyle: .body)
+        info.textColor = ClubTheme.ink
         info.text = "정원 \(event.capacity)명\n\n참가 문의를 남겨주시면 운영진이 일정과 참가 절차를 안내해드립니다."
         if !Service.shared.live { info.text! += "\n\n현재 예시 모드입니다. 인터넷 연결을 확인한 후 다시 시도해주세요." }
         button.setTitle("참가 문의하기", for: .normal)
-        button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+        ClubTheme.primary(button)
         button.isEnabled = Service.shared.live && event.remaining != 0
         button.addTarget(self, action: #selector(submit), for: .touchUpInside)
         let companion = UIButton(type: .system)
         companion.setTitle("동행할 회원 찾기", for: .normal)
+        ClubTheme.secondary(companion)
         companion.addTarget(self, action: #selector(findCompanion), for: .touchUpInside)
-        let stack = UIStackView(arrangedSubviews: [name, info, button, companion])
+        let stack = UIStackView(arrangedSubviews: [eyebrow, name, info, button, companion])
         stack.axis = .vertical
-        stack.spacing = 26
+        stack.spacing = 18
+        stack.setCustomSpacing(8, after: eyebrow)
+        stack.setCustomSpacing(28, after: info)
+        stack.setCustomSpacing(12, after: button)
         stack.translatesAutoresizingMaskIntoConstraints = false
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false

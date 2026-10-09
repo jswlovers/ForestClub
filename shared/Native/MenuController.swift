@@ -93,6 +93,7 @@ extension UIViewController {
 
 enum NativeApp {
     static func makeRoot() -> UITabBarController {
+        ClubTheme.apply()
         let tabs = UITabBarController()
         let controllers: [UIViewController] = [EventsController(home: true), EventsController(home: false), AccountController(), MenuController()]
         let labels = ["홈", "모임", "마이페이지", "전체 메뉴"]
