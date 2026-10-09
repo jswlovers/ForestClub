@@ -106,6 +106,7 @@ enum NativeApp {
         tabs.tabBar.tintColor = green
         if #available(iOS 13.0, *) { tabs.overrideUserInterfaceStyle = .light }
         if !Service.shared.address.isEmpty { Service.shared.restoreUser { _ in } }
+        CallMonitor.shared.start()
         return tabs
     }
 }

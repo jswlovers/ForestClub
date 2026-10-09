@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>포레스트클럽 보이스톡</title>
+</head>
+<body style="margin:0;background:#1f4738">
+<!-- iOS(WKWebView)와 Android(WebView) 앱이 함께 쓰는 보이스톡 음성 엔진. 화면과 과금은 앱이 맡고 이 페이지는 Daily.co 음성 연결만 담당한다.
+     android/app/src/main/assets/ForestCall.html은 이 파일의 복사본이며 Android 단위 테스트가 두 파일이 같은지 확인한다. -->
+<script src="https://unpkg.com/@daily-co/daily-js@0.92.2/dist/daily.js" integrity="sha384-qkOcWks7O6ZM0W8bDQRvE2Zigs/pWm7ioqYeangGqWoaqMEFUNeAKYLp8J+qWiUS" crossorigin="anonymous"></script>
+<script>
+(function(){
+  var call=null;
+  function send(message){
+    var text=JSON.stringify(message);
+    if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.call) window.webkit.messageHandlers.call.postMessage(text);
+    else if(window.ForestCall) window.ForestCall.post(text);
+  }
+  function remoteCount(){
+    if(!call) return 0;
+    return Object.keys(call.participants()).filter(function(id){return id!=='local'}).length;
+  }
+  // 통화 객체 모드는 상대 음성을 자동 재생하지 않으므로 참가자별 audio 요소에 직접 연결한다.
+  function attach(participant){
+    if(!participant||participant.local) return;
+    var track=participant.tracks&&participant.tracks.audio;
+    var id='audio-'+participant.session_id, element=document.getElementById(id);
+    if(!track||track.state!=='playable'||!track.persistentTrack) return;
+    if(!element){
+      element=document.createElement('audio');
+      element.id=id; element.autoplay=true; element.setAttribute('playsinline','');
+      document.body.appendChild(element);
+    }
+    var current=element.srcObject&&element.srcObject.getAudioTracks()[0];
+    if(current!==track.persistentTrack) element.srcObject=new MediaStream([track.persistentTrack]);
+    var playing=element.play();
+    if(playing&&playing.catch) playing.catch(function(){});
+  }
+  function detach(participant){
+    var element=participant&&document.getElementById('audio-'+participant.session_id);
+    if(element) element.remove();
+  }
+  function fail(error,fallback){
+    send({type:'error',message:(error&&(error.errorMsg||error.message))||fallback});
+  }
+  window.forestJoin=function(url){
+    if(!window.Daily){send({type:'error',message:'통화 모듈을 불러오지 못했어요. 네트워크 상태를 확인하고 다시 시도해주세요'});return}
+    try{
+      call=window.Daily.createCallObject({audioSource:true,videoSource:false,subscribeToTracksAutomatically:true});
+      call.on('track-started',function(event){attach(event.participant)});
+      call.on('participant-updated',function(event){attach(event.participant)});
+      call.on('participant-joined',function(event){attach(event.participant);send({type:'participants',remote:remoteCount()})});
+      call.on('participant-left',function(event){detach(event.participant);send({type:'participants',remote:remoteCount()})});
+      call.on('left-meeting',function(){send({type:'left'})});
+      call.on('error',function(event){fail(event,'통화 중 오류가 발생했어요')});
+      call.join({url:url,startVideoOff:true}).then(function(){
+        var participants=call.participants();
+        Object.keys(participants).forEach(function(id){attach(participants[id])});
+        send({type:'joined',remote:remoteCount()});
+      }).catch(function(error){fail(error,'통화방에 접속하지 못했어요')});
+    }catch(error){fail(error,'통화방에 접속하지 못했어요')}
+  };
+  window.forestMute=function(muted){if(call) call.setLocalAudio(!muted)};
+  window.forestLeave=function(){
+    if(!call){send({type:'closed'});return}
+    var leaving=call; call=null;
+    leaving.leave().catch(function(){}).then(function(){try{leaving.destroy()}catch(e){} send({type:'closed'})});
+  };
+  send({type:'ready'});
+})();
+</script>
+</body>
+</html>

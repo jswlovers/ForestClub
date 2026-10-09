@@ -12,11 +12,13 @@ iOS 18.5 이상용 앱입니다. SwiftUI 앱 진입점에서 UIKit 화면을 표
 
 Debug UI 테스트에서는 앱 실행 인수 `-forest.server http://localhost:18743`으로 로컬 fixture를 사용할 수 있습니다. Release 앱은 운영 서버에 연결합니다.
 
-최신 IPA는 `artifacts/ForestClub-iPhone16Pro-build6.ipa`입니다. 실제 기기용 arm64 빌드 6이며 설치 도구에서 서명해야 합니다. iPhone 5s에는 `artifacts/ForestClub-iOS12-build6.ipa`를 사용합니다. 이전 IPA는 보존합니다.
+최신 IPA는 `artifacts/ForestClub-iOS18-build7.ipa`입니다. 실제 기기용 arm64 빌드 7이며 설치 도구에서 서명해야 합니다. iPhone 5s에는 `artifacts/ForestClub-iOS12-build7.ipa`를 사용합니다. 이전 IPA는 보존합니다.
 
 직접 Xcode로 기기에 설치하려면 Signing & Capabilities에서 개발 팀과 고유한 Bundle Identifier를 설정합니다. App Store 배포용 아이콘과 서명은 별도 준비가 필요합니다.
 
-쪽지 발송은 500코인, 첨부는 최대 15MB이며 충전 신청은 관리자 확인과 승인이 필요합니다. 실시간 음성·영상 통화 UI와 프로필 사진 업로드는 현재 앱에 포함되지 않습니다.
+쪽지 발송은 500코인, 첨부는 최대 15MB이며 충전 신청은 관리자 확인과 승인이 필요합니다. 프로필 사진 업로드는 현재 앱에 포함되지 않습니다.
+
+보이스톡: 대화창의 '보이스톡' 버튼으로 걸고, 앱이 열려 있으면 받기/거절 창이 뜹니다. 대화의 통화 메시지를 눌러도 참여할 수 있습니다. 통화 중 초당 10코인이 사용되며 잔액 기준은 웹과 같습니다. 페이스톡(영상)은 웹사이트에서 이용합니다. 앱이 꺼져 있을 때의 착신 알림(푸시)은 아직 지원하지 않습니다.
 
 ## 검증
 

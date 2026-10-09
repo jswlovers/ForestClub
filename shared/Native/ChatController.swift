@@ -37,7 +37,10 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
             footer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12), footer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12), bottom,
             input.heightAnchor.constraint(equalToConstant: 72), send.widthAnchor.constraint(equalToConstant: 62)
         ])
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "첨부", style: .plain, target: self, action: #selector(attach))
+        let attachItem = UIBarButtonItem(title: "첨부", style: .plain, target: self, action: #selector(attach))
+        let callItem = UIBarButtonItem(title: "보이스톡", style: .plain, target: self, action: #selector(startCall))
+        callItem.accessibilityLabel = "보이스톡 걸기"
+        navigationItem.rightBarButtonItems = [attachItem, callItem]
         loginObserver = NotificationCenter.default.addObserver(forName: .clubLoginChanged, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
             if Service.shared.userId == nil {
@@ -72,6 +75,7 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
             let rows = response["messages"] as? [Record] ?? []
             let countChanged = rows.count != self.messages.count
             self.messages = rows; self.table.reloadData()
+            if let last = rows.last { CallMonitor.shared.notice(last, partner: self.partnerId, name: self.title ?? "") }
             if (scroll || countChanged) && !rows.isEmpty { self.table.scrollToRow(at: IndexPath(row: rows.count - 1, section: 0), at: .bottom, animated: !scroll) }
             self.refreshBalance()
         }
@@ -92,10 +96,14 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
             if error == nil { self.input.text = "" }
         }
     }
-    func beginSend() { sending = true; send.isEnabled = false; navigationItem.rightBarButtonItem?.isEnabled = false; input.isEditable = false }
+    func beginSend() { sending = true; send.isEnabled = false; navigationItem.rightBarButtonItems?.forEach { $0.isEnabled = false }; input.isEditable = false }
     func endSend(_ error: String?) {
-        sending = false; send.isEnabled = true; navigationItem.rightBarButtonItem?.isEnabled = true; input.isEditable = true
+        sending = false; send.isEnabled = true; navigationItem.rightBarButtonItems?.forEach { $0.isEnabled = true }; input.isEditable = true
         if let error = error { notice(error) } else { reload(scroll: true) }
+    }
+    @objc func startCall() {
+        guard !sending else { return }
+        CallMonitor.shared.place(partner: partnerId, partnerName: title ?? "", from: self) { self.reload(scroll: true) }
     }
     @objc func attach() {
         let picker = UIDocumentPickerViewController(documentTypes: ["public.data"], in: .import)
@@ -122,14 +130,17 @@ final class ChatController: UIViewController, UITableViewDataSource, UITableView
         cell.textLabel?.text = (mine ? "나: " : "상대: ") + string(row, "body")
         cell.textLabel?.numberOfLines = 0; cell.textLabel?.font = .preferredFont(forTextStyle: .body)
         cell.textLabel?.textColor = mine ? green : .black
-        cell.detailTextLabel?.text = [string(row, "attachment_name"), string(row, "created_at")].filter { !$0.isEmpty }.joined(separator: " · ")
+        let call = ClubCall.isCall(row)
+        let label = call ? (string(row, "attachment_name") == "video" ? "페이스톡 · 웹사이트에서 받기" : "보이스톡 · 눌러서 참여") : string(row, "attachment_name")
+        cell.detailTextLabel?.text = [label, string(row, "created_at")].filter { !$0.isEmpty }.joined(separator: " · ")
         cell.detailTextLabel?.numberOfLines = 0
-        cell.accessoryType = string(row, "attachment_url").hasPrefix("/api/messages/attachments/") ? .disclosureIndicator : .none
+        cell.accessoryType = call || string(row, "attachment_url").hasPrefix("/api/messages/attachments/") ? .disclosureIndicator : .none
         return cell
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let row = messages[indexPath.row], path = string(row, "attachment_url")
+        if ClubCall.isCall(row) { CallMonitor.shared.join(row, partnerName: title ?? "", from: self); return }
         guard path.hasPrefix("/api/messages/attachments/") else { return }
         Service.shared.attachment(path) { data, error in
             guard let data = data else { self.notice(error ?? "첨부파일을 열 수 없습니다."); return }
