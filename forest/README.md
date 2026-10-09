@@ -1,6 +1,6 @@
 # 포레스트클럽 최신 iOS 앱
 
-iOS 18.5 이상용 앱입니다. SwiftUI 앱 진입점에서 UIKit 화면을 표시하며, iPhone 5s용 앱과 `shared/Native/`의 화면 및 API 클라이언트를 함께 사용합니다.
+iOS 17.0 이상용 앱입니다. SwiftUI 앱 진입점에서 UIKit 화면을 표시하며, iPhone 5s용 앱과 `shared/Native/`의 화면 및 API 클라이언트를 함께 사용합니다.
 
 빌드 6부터 프로필, 멤버십 지원, 동행 신청, 쪽지 대화와 첨부파일, 코인 잔액·충전 신청, 고객센터를 모두 앱 내부에서 이용합니다. 외부 웹사이트 로그인은 필요하지 않습니다. 로그인 세션은 키체인에 보관하고, 로그아웃이나 서버 만료 시 해제합니다. 비밀번호는 저장하지 않습니다.
 
@@ -12,7 +12,7 @@ iOS 18.5 이상용 앱입니다. SwiftUI 앱 진입점에서 UIKit 화면을 표
 
 Debug UI 테스트에서는 앱 실행 인수 `-forest.server http://localhost:18743`으로 로컬 fixture를 사용할 수 있습니다. Release 앱은 운영 서버에 연결합니다.
 
-최신 IPA는 `artifacts/ForestClub-iOS18-build7.ipa`입니다. 실제 기기용 arm64 빌드 7이며 설치 도구에서 서명해야 합니다. iPhone 5s에는 `artifacts/ForestClub-iOS12-build7.ipa`를 사용합니다. 이전 IPA는 보존합니다.
+최신 IPA는 `artifacts/ForestClub-iPhone15ProMax-iOS17-build8.ipa`입니다. iOS 17.0 이상(예: iPhone 15 Pro Max iOS 17.1.1)의 실제 기기용 arm64 빌드 8이며 설치 도구에서 서명해야 합니다. iPhone 5s에는 `artifacts/ForestClub-iOS12-build7.ipa`를 사용합니다. 이전 IPA는 보존합니다.
 
 직접 Xcode로 기기에 설치하려면 Signing & Capabilities에서 개발 팀과 고유한 Bundle Identifier를 설정합니다. App Store 배포용 아이콘과 서명은 별도 준비가 필요합니다.
 
