@@ -11,7 +11,7 @@ import SwiftUI
 struct forestApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView().ignoresSafeArea()
         }
     }
 }

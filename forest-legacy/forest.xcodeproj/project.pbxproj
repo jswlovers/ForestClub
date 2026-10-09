@@ -38,6 +38,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+        6BE620213077D644000B04F3 /* Native */ = { isa = PBXFileSystemSynchronizedRootGroup; path = ../shared/Native; sourceTree = "<group>"; };
 		6BE61FF33077D642000B04F3 /* forest */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (6BE620203077D644000B04F3,);
@@ -85,6 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				6BE61FF33077D642000B04F3 /* forest */,
+                6BE620213077D644000B04F3 /* Native */,
 				6BE620023077D644000B04F3 /* forestTests */,
 				6BE6200C3077D644000B04F3 /* forestUITests */,
 				6BE61FF23077D642000B04F3 /* Products */,
@@ -118,6 +120,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				6BE61FF33077D642000B04F3 /* forest */,
+                6BE620213077D644000B04F3 /* Native */,
 			);
 			name = forest;
 			packageProductDependencies = (
@@ -400,7 +403,7 @@
 				INFOPLIST_FILE = forest/Info.plist;
                 INFOPLIST_KEY_CFBundleDisplayName = "포레스트클럽";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -436,7 +439,7 @@
 				INFOPLIST_FILE = forest/Info.plist;
                 INFOPLIST_KEY_CFBundleDisplayName = "포레스트클럽";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -469,7 +472,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
@@ -491,7 +494,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
@@ -512,7 +515,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
@@ -533,7 +536,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;

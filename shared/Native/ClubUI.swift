@@ -1,6 +1,6 @@
 import UIKit
 
-private let green = UIColor(red: 0.12, green: 0.28, blue: 0.22, alpha: 1)
+let green = UIColor(red: 0.12, green: 0.28, blue: 0.22, alpha: 1)
 
 struct Event: Decodable {
     let id: String
@@ -16,104 +16,6 @@ struct Event: Decodable {
         Event(id: "travel-bali", type: "travel", name: "발리 웰니스 & 골프 리트릿", capacity: 12, remaining: nil),
         Event(id: "travel-napa", type: "travel", name: "나파밸리 와인 & 골프 투어", capacity: 10, remaining: nil)
     ]
-}
-
-final class Service {
-    static let shared = Service()
-    var address: String { UserDefaults.standard.string(forKey: "forest.server") ?? "" }
-    var events = Event.examples
-    var live = false
-    var user: String?
-    private var session = Service.makeSession()
-    private var revision = 0
-    private static func makeSession() -> URLSession {
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 20
-        config.httpShouldSetCookies = true
-        config.httpCookieAcceptPolicy = .always
-        return URLSession(configuration: config)
-    }
-    func connect(_ address: String, completion: @escaping (String?) -> Void) {
-        guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)),
-              url.scheme == "https", let host = url.host, !host.isEmpty,
-              url.user == nil, url.password == nil, url.query == nil, url.fragment == nil,
-              url.path.isEmpty || url.path == "/" else {
-            completion("HTTPS 서버 루트 주소를 입력해주세요.")
-            return
-        }
-        revision += 1
-        session.invalidateAndCancel()
-        session = Service.makeSession()
-        user = nil
-        live = false
-        events = Event.examples
-        UserDefaults.standard.set(url.absoluteString, forKey: "forest.server")
-        refresh(completion)
-    }
-    func request(_ path: [String], body: [String: String]? = nil, completion: @escaping (Data?, String?) -> Void) {
-        guard var url = URL(string: address), url.scheme == "https" else {
-            completion(nil, "마이페이지에서 HTTPS 서버를 연결해주세요.")
-            return
-        }
-        for component in path { url.appendPathComponent(component) }
-        var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let body = body {
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        }
-        let version = revision
-        session.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                guard version == self.revision else { completion(nil, "서버 연결이 변경되었습니다."); return }
-                if let error = error { completion(nil, error.localizedDescription); return }
-                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                    let json = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-                    completion(nil, json?["error"] as? String ?? "서버 요청에 실패했습니다.")
-                    return
-                }
-                completion(data ?? Data(), nil)
-            }
-        }.resume()
-    }
-    func refresh(_ completion: @escaping (String?) -> Void) {
-        request(["api", "events"]) { data, error in
-            if let data = data, let events = try? JSONDecoder().decode([Event].self, from: data) {
-                self.events = events
-                self.live = true
-                completion(nil)
-            } else {
-                self.events = Event.examples
-                self.live = false
-                completion(error ?? "모임 응답을 읽을 수 없습니다.")
-            }
-        }
-    }
-}
-
-@UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        let tabs = UITabBarController()
-        let home = EventsController(home: true)
-        home.tabBarItem = UITabBarItem(title: "홈", image: MenuIcon.draw(.home), tag: 0)
-        let events = EventsController(home: false)
-        events.tabBarItem = UITabBarItem(title: "모임", image: MenuIcon.draw(.events), tag: 1)
-        let account = AccountController()
-        account.tabBarItem = UITabBarItem(title: "마이페이지", image: MenuIcon.draw(.account), tag: 2)
-        let menu = MenuController()
-        menu.tabBarItem = UITabBarItem(title: "전체 메뉴", image: MenuIcon.draw(.menu), tag: 3)
-        tabs.viewControllers = [home, events, account, menu].map { UINavigationController(rootViewController: $0) }
-        tabs.tabBar.tintColor = green
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        window.tintColor = green
-        window.rootViewController = tabs
-        window.makeKeyAndVisible()
-        self.window = window
-        return true
-    }
 }
 
 extension UIViewController {
@@ -217,7 +119,10 @@ final class DetailController: UIViewController {
         button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
         button.isEnabled = Service.shared.live && event.remaining != 0
         button.addTarget(self, action: #selector(submit), for: .touchUpInside)
-        let stack = UIStackView(arrangedSubviews: [name, info, button])
+        let companion = UIButton(type: .system)
+        companion.setTitle("동행할 회원 찾기", for: .normal)
+        companion.addTarget(self, action: #selector(findCompanion), for: .touchUpInside)
+        let stack = UIStackView(arrangedSubviews: [name, info, button, companion])
         stack.axis = .vertical
         stack.spacing = 26
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -237,6 +142,9 @@ final class DetailController: UIViewController {
             stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -40)
         ])
     }
+    @objc func findCompanion() {
+        requireLogin { self.navigationController?.pushViewController(MembersController(event: self.event), animated: true) }
+    }
     @objc func submit() {
         button.isEnabled = false
         Service.shared.request(["api", "events", event.name, "interest"], body: [:]) { _, error in
@@ -252,94 +160,77 @@ final class DetailController: UIViewController {
 
 final class AccountController: UITableViewController {
     var busy = false
+    var loginObserver: NSObjectProtocol?
+    private var memberItems: [String] {
+        Service.shared.userId == nil ? ["로그인", "회원가입"] : ["내 프로필", "쪽지함", "코인 충전", "내 지원 현황", "내 신청함", "고객센터", "로그아웃"]
+    }
     init() { super.init(style: .grouped) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override func viewDidLoad() { super.viewDidLoad(); title = "마이페이지" }
-    override func viewWillAppear(_ animated: Bool) { super.viewWillAppear(animated); tableView.reloadData() }
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 5 }
+    override func viewDidLoad() {
+        super.viewDidLoad(); title = "마이페이지"
+        loginObserver = NotificationCenter.default.addObserver(forName: .clubLoginChanged, object: nil, queue: .main) { [weak self] _ in self?.tableView.reloadData() }
+    }
+    deinit { if let observer = loginObserver { NotificationCenter.default.removeObserver(observer) } }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated); tableView.reloadData()
+        if !Service.shared.address.isEmpty { Service.shared.restoreUser { _ in self.tableView.reloadData() } }
+    }
+    override func numberOfSections(in tableView: UITableView) -> Int { 3 }
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { section == 1 ? memberItems.count : 1 }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return (Service.shared.user.map { "\($0)님, 반갑습니다" } ?? "포레스트클럽과 함께하세요") + "\n" + (Service.shared.live ? "서버 연결됨" : "예시 모드")
+        if section == 0 { return "서비스 연결" }
+        if section == 1 { return Service.shared.user.map { "\($0)님, 반갑습니다" } ?? "한 번 로그인으로 모든 회원 기능 이용" }
+        return "포레스트클럽"
     }
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        return "iOS 12 호환 버전 · 실제 서버의 HTTPS 주소를 설정해주세요.\n로그인 세션은 앱 종료 시 해제됩니다. 웹에서는 별도 로그인이 필요합니다."
+        section == 1 ? "로그인 세션은 키체인에 보관됩니다. 로그아웃하거나 서버에서 세션이 만료되면 다시 로그인해주세요." : nil
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
-        cell.textLabel?.text = ["서버 주소 설정", "로그인", "회원가입", "로그아웃", "멤버십 · 동행 · 쪽지 웹 서비스"][indexPath.row]
-        cell.textLabel?.numberOfLines = 0
-        if indexPath.row == 0 { cell.detailTextLabel?.text = Service.shared.address; cell.detailTextLabel?.numberOfLines = 0 }
-        cell.accessoryType = .disclosureIndicator
+        cell.textLabel?.numberOfLines = 0; cell.detailTextLabel?.numberOfLines = 0; cell.accessoryType = .disclosureIndicator
+        if indexPath.section == 0 { cell.textLabel?.text = "서버 주소 설정"; cell.detailTextLabel?.text = Service.shared.address.isEmpty ? "서버 연결 전 · 예시 모임" : Service.shared.address }
+        else if indexPath.section == 1 { cell.textLabel?.text = memberItems[indexPath.row] }
+        else { cell.textLabel?.text = "전체 메뉴" }
         return cell
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        guard !busy else { return }
-        switch indexPath.row {
-        case 0: serverPrompt()
-        case 1: authPrompt(signup: false)
-        case 2: authPrompt(signup: true)
-        case 3:
+        tableView.deselectRow(at: indexPath, animated: true); guard !busy else { return }
+        if indexPath.section == 0 { serverPrompt(); return }
+        if indexPath.section == 2 { navigationController?.pushViewController(MenuController(), animated: true); return }
+        let item = memberItems[indexPath.row]
+        switch item {
+        case "로그인": authPrompt(signup: false)
+        case "회원가입": authPrompt(signup: true)
+        case "로그아웃":
             busy = true
             Service.shared.request(["api", "auth", "logout"], body: [:]) { _, error in
                 self.busy = false
-                if let error = error { self.notice(error) } else { Service.shared.user = nil; self.tableView.reloadData() }
+                if let error = error { self.notice(error) } else { self.tableView.reloadData() }
             }
-        default:
-            if Service.shared.live, let url = URL(string: Service.shared.address) { UIApplication.shared.open(url) }
-            else { notice("서버를 먼저 연결해주세요.") }
+        default: openNativeMenu(item)
         }
     }
     func serverPrompt() {
-        let alert = UIAlertController(title: "서버 연결", message: "HTTPS 서버 루트 주소를 입력하세요.", preferredStyle: .alert)
+        let alert = UIAlertController(title: "서버 연결", message: "HTTPS 서버 루트 주소를 입력하세요. 시뮬레이터의 로컬 테스트에는 http://localhost:3000을 사용할 수 있습니다.", preferredStyle: .alert)
         alert.addTextField { field in
-            field.placeholder = "https://서버주소"
-            field.text = Service.shared.address
-            field.keyboardType = .URL
-            field.autocapitalizationType = .none
-            field.autocorrectionType = .no
+            field.placeholder = "https://서버주소"; field.text = Service.shared.address; field.keyboardType = .URL
+            field.autocapitalizationType = .none; field.autocorrectionType = .no
         }
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
         alert.addAction(UIAlertAction(title: "연결", style: .default) { _ in
             self.busy = true
             Service.shared.connect(alert.textFields?.first?.text ?? "") { error in
-                self.busy = false
-                self.tableView.reloadData()
-                self.notice(error ?? "서버에 연결되었습니다.")
+                self.busy = false; self.tableView.reloadData(); self.notice(error ?? "서버에 연결되었습니다.")
             }
         })
         present(alert, animated: true)
     }
     func authPrompt(signup: Bool) {
-        guard Service.shared.live else { notice("서버를 먼저 연결해주세요."); return }
-        let alert = UIAlertController(title: signup ? "회원가입" : "로그인", message: signup ? "비밀번호는 8자 이상 입력해주세요." : nil, preferredStyle: .alert)
-        if signup { alert.addTextField { $0.placeholder = "이름" } }
-        alert.addTextField { field in
-            field.placeholder = "이메일"
-            field.keyboardType = .emailAddress
-            field.autocapitalizationType = .none
-            field.autocorrectionType = .no
+        guard !Service.shared.address.isEmpty else { notice("서버를 먼저 연결해주세요."); return }
+        let form = NativeFormController.login(signup: signup) {
+            self.navigationController?.popToViewController(self, animated: true); self.tableView.reloadData()
+            if let error = Service.shared.persistenceError { self.notice(error) }
         }
-        alert.addTextField { field in field.placeholder = "비밀번호"; field.isSecureTextEntry = true }
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
-            let fields = alert.textFields ?? []
-            let offset = signup ? 1 : 0
-            let name = signup ? fields[0].text ?? "" : ""
-            let email = (fields[offset].text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            let password = fields[offset + 1].text ?? ""
-            guard !email.isEmpty, !password.isEmpty, !signup || (!name.trimmingCharacters(in: .whitespaces).isEmpty && password.count >= 8) else {
-                self.notice("입력 내용을 확인해주세요."); return
-            }
-            self.busy = true
-            Service.shared.request(["api", "auth", signup ? "signup" : "login"], body: ["name": name, "email": email, "password": password]) { data, error in
-                self.busy = false
-                if let error = error { self.notice(error); return }
-                if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let name = json["name"] as? String {
-                    Service.shared.user = name
-                    self.tableView.reloadData()
-                } else { self.notice("계정 응답을 읽을 수 없습니다.") }
-            }
-        })
-        present(alert, animated: true)
+        navigationController?.pushViewController(form, animated: true)
     }
 }

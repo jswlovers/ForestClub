@@ -36,9 +36,9 @@ final class MenuController: UITableViewController {
     override func viewDidLoad() { super.viewDidLoad(); title = "전체 메뉴" }
     override func numberOfSections(in tableView: UITableView) -> Int { items.count }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { items[section].count }
-    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? { ["모임", "회원 계정", "회원 웹 서비스"][section] }
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? { ["모임", "회원 계정", "회원 서비스"][section] }
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        section == 2 ? "회원 웹 서비스는 연결된 웹사이트에서 이용합니다. 서버 연결 전에도 메뉴를 확인할 수 있습니다." : nil
+        section == 2 ? "모든 회원 기능은 앱 안에서 한 번의 로그인으로 이용합니다." : nil
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
@@ -59,34 +59,55 @@ final class MenuController: UITableViewController {
         } else if indexPath.section == 1 {
             navigationController?.pushViewController(AccountController(), animated: true)
         } else {
-            let destination = WebMenuController(menuTitle: items[indexPath.section][indexPath.row])
-            navigationController?.pushViewController(destination, animated: true)
+            openNativeMenu(items[indexPath.section][indexPath.row])
         }
     }
 }
 
-final class WebMenuController: UITableViewController {
-    let menuTitle: String
-    init(menuTitle: String) { self.menuTitle = menuTitle; super.init(style: .grouped) }
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override func viewDidLoad() { super.viewDidLoad(); title = menuTitle }
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 1 }
-    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? { "\(menuTitle)은 웹 서비스에서 이용합니다." }
-    override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        Service.shared.live ? "회원 메뉴는 웹사이트 로그인 후 선택해주세요. 웹사이트의 iOS 12 지원 여부에 따라 기능 사용이 제한될 수 있습니다." : "마이페이지에서 서비스 서버를 먼저 연결해주세요."
-    }
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
-        cell.textLabel?.text = Service.shared.live ? "웹 서비스 열기" : "서버 연결 설정"
-        cell.accessoryType = .disclosureIndicator
-        return cell
-    }
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        guard Service.shared.live, var components = URLComponents(string: Service.shared.address) else {
-            navigationController?.pushViewController(AccountController(), animated: true); return
+
+extension UIViewController {
+    func openNativeMenu(_ title: String) {
+        switch title {
+        case "클럽 소개":
+            navigationController?.pushViewController(TextPageController(title: title, sections: [("포레스트클럽", "골프와 여행을 함께 즐기는 프라이빗 멤버십입니다."), ("함께하는 경험", "소규모 라운딩과 국내외 골프·여행 모임에서 취향을 나눕니다."), ("가입 절차", "온라인 지원서 → 서류 심사 → 멤버 인터뷰 → 승인 및 웰컴")]), animated: true)
+        case "멤버 후기":
+            navigationController?.pushViewController(TextPageController(title: title, sections: [("소개 자료의 후기", "비슷한 위치에서 비슷한 고민을 나눌 수 있는 자리가 드물었는데, 여기서는 편하게 말할 수 있어요."), ("라운딩", "라운딩 인원이 적어서 좋았습니다. 기다림 없이 여유롭게, 대화도 충분히 나눌 수 있어요."), ("여행", "스코틀랜드 투어는 평생 잊지 못할 경험이었습니다. 일정 하나하나가 세심했어요.")]), animated: true)
+        case "멤버십 · 지원하기": openApplication()
+        case "내 프로필": openProfile()
+        default:
+            requireLogin {
+                let controller: UIViewController
+                switch title {
+                case "쪽지함": controller = ConversationsController()
+                case "코인 충전": controller = CoinsController()
+                case "내 신청함": controller = CompanionInboxController()
+                case "고객센터": controller = SupportController()
+                default:
+                    controller = RecordsController(title: "내 지원 현황", path: ["api", "applications", "me"], render: { row in
+                        (statusText(string(row, "status")), [string(row, "created_at"), string(row, "admin_note")].filter { !$0.isEmpty }.joined(separator: "\n"))
+                    })
+                }
+                self.navigationController?.pushViewController(controller, animated: true)
+            }
         }
-        components.fragment = ["클럽 소개": "about", "멤버십 · 지원하기": "membership", "멤버 후기": "voice"][menuTitle]
-        if let url = components.url { UIApplication.shared.open(url) }
+    }
+}
+
+enum NativeApp {
+    static func makeRoot() -> UITabBarController {
+        let tabs = UITabBarController()
+        let controllers: [UIViewController] = [EventsController(home: true), EventsController(home: false), AccountController(), MenuController()]
+        let labels = ["홈", "모임", "마이페이지", "전체 메뉴"]
+        let icons: [MenuIcon] = [.home, .events, .account, .menu]
+        tabs.viewControllers = controllers.enumerated().map { index, controller in
+            let navigation = UINavigationController(rootViewController: controller)
+            navigation.tabBarItem = UITabBarItem(title: labels[index], image: MenuIcon.draw(icons[index]), tag: index)
+            navigation.navigationBar.tintColor = green
+            return navigation
+        }
+        tabs.tabBar.tintColor = green
+        if #available(iOS 13.0, *) { tabs.overrideUserInterfaceStyle = .light }
+        if !Service.shared.address.isEmpty { Service.shared.restoreUser { _ in } }
+        return tabs
     }
 }
