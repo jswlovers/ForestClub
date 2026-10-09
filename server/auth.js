@@ -31,7 +31,7 @@ const getSession = db.prepare(
           users.photo_url, users.verified_identity_at, users.verified_employment_at, users.verified_golf_at,
           users.marketing_opt_in_at,
           users.nickname, users.birth_date, users.gender, users.marital_status,
-          users.status, users.rejected_at, users.rejected_reason
+          users.status, users.rejected_at, users.rejected_reason, users.created_at
    FROM sessions JOIN users ON users.id = sessions.user_id
    WHERE sessions.token = ?`
 );
@@ -72,6 +72,7 @@ function currentUser(req) {
     id: row.id, name: row.name, email: row.email, phone: row.phone, role: row.role,
     nickname: row.nickname, birthDate: row.birth_date, gender: row.gender, maritalStatus: row.marital_status,
     status: row.status, rejectedAt: row.rejected_at, rejectedReason: row.rejected_reason,
+    createdAt: row.created_at,
     ageGroup: row.age_group, region: row.region, job: row.job,
     golfExperience: row.golf_experience, interest: row.interest, intro: row.intro,
     photoUrl: row.photo_url,

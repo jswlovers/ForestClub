@@ -36,13 +36,14 @@
     <section id="adminAppPane" class="admin-app hidden">
       <div class="admin-tabs">
         <button class="admin-tab active" data-tab="users">회원 관리</button>
-        <button class="admin-tab" data-tab="applications">지원서 심사</button>
+        <button class="admin-tab" data-tab="applications">지원서(이전)</button>
         <button class="admin-tab" data-tab="identity">신분증 인증</button>
         <button class="admin-tab" data-tab="companions">동행 신청 현황</button>
         <button class="admin-tab" data-tab="interests">참가 문의</button>
         <button class="admin-tab" data-tab="attendances">모임 참석 관리</button>
         <button class="admin-tab" data-tab="tickets">고객센터/신고</button>
         <button class="admin-tab" data-tab="coincharges">코인 충전 승인</button>
+        <button class="admin-tab" data-tab="coinissuance">코인 발행 현황</button>
         <button class="admin-tab" data-tab="coinledger">코인 원장</button>
         <button class="admin-tab" data-tab="settings">운영정책 설정</button>
         <button class="admin-tab" data-tab="notify">안내 메시지 발송</button>
@@ -53,7 +54,7 @@
       <section class="admin-panel" id="panel-users">
         <div class="panel-head"><h2>회원 관리</h2><span class="panel-count" id="usersCount"></span></div>
         <p class="dialog-sub">가입심사가 '대기중'인 회원은 승인 전까지 쪽지·동행신청·코인충전·통화·모임참석확정을 쓸 수 없어요. 서류 심사·인터뷰를 마쳤으면 승인해주세요.</p>
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>닉네임</th><th>이메일</th><th>연락처</th><th>역할</th><th>성별</th><th>보유 코인</th><th>가입심사</th><th>이용상태</th><th>신고</th><th>인증</th><th>가입일</th><th>처리</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>닉네임</th><th>이메일</th><th>연락처</th><th>역할</th><th>성별</th><th>보유 코인</th><th>지원 내용</th><th>가입심사</th><th>이용상태</th><th>신고</th><th>인증</th><th>가입일</th><th>처리</th></tr></thead><tbody id="usersBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-attendances">
@@ -78,7 +79,8 @@
       </section>
 
       <section class="admin-panel hidden" id="panel-applications">
-        <div class="panel-head"><h2>지원서 심사</h2><span class="panel-count" id="applicationsCount"></span></div>
+        <div class="panel-head"><h2>지원서(이전)</h2><span class="panel-count" id="applicationsCount"></span></div>
+        <p class="dialog-sub">지원서는 이제 회원가입에 합쳐졌어요. 신규 지원자는 '회원 관리'에서 지원 내용을 보고 가입 승인/거절해주세요. 이 목록은 통합 전에 접수된 지원서만 보여줘요.</p>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>이름</th><th>연락처</th><th>이메일</th><th>연령대</th><th>지역</th><th>직업</th><th>골프구력</th><th>관심분야</th><th>추천인</th><th>소개</th><th>상태</th><th>메모/사유</th><th>접수일</th><th>처리</th></tr></thead><tbody id="applicationsBody"></tbody></table></div>
       </section>
 
@@ -108,6 +110,13 @@
         <div class="panel-head"><h2>코인 충전 승인</h2><span class="panel-count" id="coinChargesCount"></span></div>
         <p class="dialog-sub">회원이 무통장입금 등으로 충전을 신청하면, 입금을 확인한 뒤 승인해주세요. 승인 즉시 코인이 지급되고 안내 알림이 발송됩니다.</p>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>회원</th><th>이메일</th><th>충전 금액</th><th>코인</th><th>수단</th><th>상태</th><th>메모/사유</th><th>신청일</th><th>처리</th></tr></thead><tbody id="coinChargesBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-coinissuance">
+        <div class="panel-head"><h2>코인 발행 현황</h2><span class="panel-count" id="coinIssuanceCount"></span></div>
+        <p class="dialog-sub">발행 = 회원에게 들어간 코인 전부(유료 충전 + 무료 지급). 사용·회수 = 문자·통화 사용, 모임 몰수, 환불 회수. 현재 잔액 = 발행 − 사용·회수.</p>
+        <div class="coin-stats" id="coinIssuanceStats"></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>순위</th><th>이름</th><th>닉네임</th><th>이메일</th><th>성별</th><th>현재 잔액</th><th>유료 잔액</th><th>무료 잔액</th><th>누적 발행</th><th>누적 사용·회수</th><th>상태</th></tr></thead><tbody id="coinIssuanceBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-coinledger">

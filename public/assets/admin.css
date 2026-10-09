@@ -52,3 +52,16 @@
 #settingsForm input{width:100%;max-width:260px;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink)}
 #settingsForm input:focus{border-color:var(--gold)}
 #settingsForm button{width:auto;padding:12px 22px;margin-top:18px}
+
+.app-summary summary{cursor:pointer;color:var(--gold,#b8914a);white-space:nowrap}
+.app-summary dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 8px;min-width:220px;max-width:320px}
+.app-summary dt{opacity:.7;white-space:nowrap}
+.app-summary dd{margin:0;white-space:pre-wrap;word-break:break-word}
+
+.coin-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.coin-stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px}
+.coin-stat span{font-size:12.5px;color:var(--muted)}
+.coin-stat strong{font-size:24px;font-variant-numeric:tabular-nums}
+.coin-stat small{font-size:12px;color:var(--muted)}
+.coin-stat.main strong{color:var(--forest)}
+@media(max-width:640px){.coin-stats{grid-template-columns:1fr}}

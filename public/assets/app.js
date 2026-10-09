@@ -29,7 +29,7 @@ async function api(path,options={}){
   let data=null;
   const text=await res.text();
   if(text){try{data=JSON.parse(text)}catch{data=null}}
-  if(!res.ok) throw new Error((data&&data.error)||'요청 중 오류가 발생했어요');
+  if(!res.ok){const err=new Error((data&&data.error)||'요청 중 오류가 발생했어요');err.code=data&&data.code;throw err}
   return data;
 }
 
@@ -89,37 +89,6 @@ document.querySelector('#moreTravel').onclick=()=>showToast('이번 시즌 여�
 
 document.querySelectorAll('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
 
-/* ── 멤버십 지원서 ─────────────────────────────────────── */
-const applyDialog=document.querySelector('#applyDialog'),doneDialog=document.querySelector('#doneDialog');
-const applyForm=document.querySelector('#applyForm'),applyError=document.querySelector('#applyError');
-
-function openApply(){applyError.textContent='';applyForm.reset();applyDialog.showModal()}
-['#applyTop','#applyHero','#applyBottom','#applyMobile'].forEach(sel=>{
-  document.querySelector(sel).onclick=()=>{mobileMenu.classList.remove('show');openApply()};
-});
-
-applyForm.onsubmit=async e=>{
-  e.preventDefault();
-  const name=document.querySelector('#applyName').value.trim();
-  const phone=document.querySelector('#applyPhone').value.trim();
-  const email=document.querySelector('#applyEmail').value.trim();
-  const ageGroup=document.querySelector('#applyAge').value;
-  const region=document.querySelector('#applyRegion').value.trim();
-  const job=document.querySelector('#applyJob').value.trim();
-  const golfExperience=document.querySelector('#applyGolf').value;
-  const interest=document.querySelector('#applyInterest').value;
-  const referrer=document.querySelector('#applyReferrer').value.trim();
-  const intro=document.querySelector('#applyIntro').value.trim();
-  if(!name||!phone||!email){applyError.textContent='성함, 연락처, 이메일을 입력해주세요';return}
-  try{
-    await api('/api/applications',{method:'POST',body:{name,phone,email,ageGroup,region,job,golfExperience,interest,referrer,intro}});
-    applyDialog.close();
-    document.querySelector('#doneText').textContent=`${name}님, ${interest} 분야 지원서가 접수되었습니다. ${ageGroup}${region?' · '+region:''} 프로필로 심사를 시작하며, 접수 확인 문자를 보내드렸어요. 영업일 기준 3일 이내 연락드릴게요.`;
-    doneDialog.showModal();
-  }catch(err){applyError.textContent=err.message}
-};
-document.querySelector('#doneClose').onclick=()=>doneDialog.close();
-
 /* ── 회원가입 / 로그인 ─────────────────────────────────── */
 const authBtn=document.querySelector('#authBtn'),authMobile=document.querySelector('#authMobile');
 const authMenu=document.querySelector('#authMenu'),authDialog=document.querySelector('#authDialog');
@@ -172,17 +141,137 @@ async function refreshSession(){
 refreshSession();
 
 function openAuthDialog(){
-  loginError.textContent='';signupError.textContent='';loginForm.reset();signupForm.reset();
-  nicknameOk=false;signupNicknameHint.textContent='';signupNicknameHint.className='';
-  updateSignupSubmitState();
+  loginError.textContent='';loginForm.reset();
+  resetSignup();
   mobileMenu.classList.remove('show');authDialog.showModal();
 }
 authBtn.onclick=()=>{if(authBtn.dataset.state==='in'){authMenu.classList.toggle('show')}else{openAuthDialog()}};
 authMobile.onclick=openAuthDialog;
 
-document.querySelectorAll('.auth-tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.auth-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');const isLogin=t.dataset.tab==='login';loginForm.classList.toggle('hidden',!isLogin);signupForm.classList.toggle('hidden',isLogin)});
+function showAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+  loginForm.classList.toggle('hidden',tab!=='login');signupForm.classList.toggle('hidden',tab==='login');
+}
+document.querySelectorAll('.auth-tab').forEach(t=>t.onclick=()=>showAuthTab(t.dataset.tab));
 
-/* 회원가입: 닉네임 실시간 중복확인 */
+/* 회원가입이 곧 멤버십 지원이다(별도 지원서 없음). "지원하기"는 가입 화면을 열고,
+   이미 로그인한 회원에게는 심사 현황을 보여준다. */
+['#applyTop','#applyHero','#applyBottom','#applyMobile','#applyReward'].forEach(sel=>{
+  document.querySelector(sel).onclick=()=>{
+    mobileMenu.classList.remove('show');
+    if(currentUser){openMyApplications();return}
+    openAuthDialog();showAuthTab('signup');
+  };
+});
+
+/* ── 회원가입(4단계) ───────────────────────────────────────
+   1 약관 동의 → 2 본인확인 → 3 회원정보 입력 → 4 신청 완료.
+   동의 전에는 어떤 개인정보도 입력받지 않고, 만 19세 미만은 2단계에서 막아 이후 정보를 받지 않는다. */
+const signupSteps=[1,2,3,4].map(n=>document.querySelector(`#signupStep${n}`));
+const signupStep2Error=document.querySelector('#signupStep2Error'),signupGoLogin=document.querySelector('#signupGoLogin');
+const GENDER_LABEL={male:'남성',female:'여성'};
+let signupIdentity=null; // 2단계에서 확인된 본인 정보. 서버에는 최종 신청 때 한 번만 저장된다.
+
+function showSignupStep(n){
+  signupSteps.forEach((el,i)=>el.classList.toggle('hidden',i!==n-1));
+  document.querySelectorAll('.signup-steps li').forEach(li=>{
+    const s=Number(li.dataset.step);
+    li.classList.toggle('active',s===n);li.classList.toggle('done',s<n);
+  });
+  authDialog.scrollTop=0;
+}
+function resetSignup(){
+  signupSteps.slice(0,3).forEach(f=>f.reset());
+  signupIdentity=null;
+  signupError.textContent='';signupStep2Error.textContent='';signupGoLogin.classList.add('hidden');
+  nicknameOk=false;signupNicknameHint.textContent='';signupNicknameHint.className='';
+  updateSignupStep1State();
+  showSignupStep(1);
+}
+document.querySelectorAll('[data-signup-back]').forEach(b=>b.onclick=()=>showSignupStep(Number(b.dataset.signupBack)));
+
+/* 화면 1: 약관 동의. 필수 3개(만 19세/이용약관/개인정보)가 모두 체크돼야 "다음"이 열린다 —
+   광고성 정보(선택)는 조건에 넣지 않는다. 전체 동의는 선택 항목까지 함께 체크한다(문구에 명시). */
+const agreeAll=document.querySelector('#agreeAll');
+const agreeAge19=document.querySelector('#agreeAge19'),agreeTerms=document.querySelector('#agreeTerms'),agreePrivacy=document.querySelector('#agreePrivacy'),agreeMarketing=document.querySelector('#agreeMarketing');
+const consentBoxes=[agreeAge19,agreeTerms,agreePrivacy,agreeMarketing];
+const signupStep1Next=document.querySelector('#signupStep1Next');
+function updateSignupStep1State(){
+  signupStep1Next.disabled=!(agreeAge19.checked&&agreeTerms.checked&&agreePrivacy.checked);
+  agreeAll.checked=consentBoxes.every(el=>el.checked);
+}
+consentBoxes.forEach(el=>el.addEventListener('change',updateSignupStep1State));
+agreeAll.addEventListener('change',()=>{consentBoxes.forEach(el=>el.checked=agreeAll.checked);updateSignupStep1State()});
+signupSteps[0].onsubmit=e=>{
+  e.preventDefault();
+  if(signupStep1Next.disabled)return;
+  showSignupStep(signupIdentity?3:2);
+};
+
+/* 동의 항목 전문 보기. 가입 화면 위에 겹쳐 띄우므로 닫아도 체크 상태가 유지된다. */
+const consentDocDialog=document.querySelector('#consentDocDialog');
+let termsLoaded=false;
+async function loadTermsInto(){
+  if(termsLoaded)return;
+  const body=document.querySelector('#consentTermsBody');
+  try{
+    const [html,info]=await Promise.all([
+      fetch('/terms.html',{credentials:'include'}).then(r=>r.text()),
+      api('/api/legal/business-info').catch(()=>null),
+    ]);
+    const page=new DOMParser().parseFromString(html,'text/html').querySelector('.legal-page');
+    page.querySelectorAll('.back-link,h1,.legal-meta').forEach(el=>el.remove());
+    if(info)page.querySelectorAll('[data-legal]').forEach(el=>{
+      const key={'legal-biz-name':'name','legal-biz-ceo':'ceo','legal-biz-address':'address','legal-biz-regno':'regNo','legal-biz-ecommerce':'ecommerceNo','legal-biz-phone':'phone','legal-biz-email':'email','legal-terms-version':'termsVersion','legal-privacy-version':'privacyVersion'}[el.dataset.legal];
+      if(key&&info[key])el.textContent=el.dataset.legal==='legal-biz-name'&&info[key]==='추후 공개 예정'?'포레스트클럽':info[key];
+    });
+    body.innerHTML=page.innerHTML;
+    document.querySelector('#consentTermsVersion').textContent=info?info.termsVersion:'-';
+    termsLoaded=true;
+  }catch{
+    body.innerHTML='<p>약관을 불러오지 못했어요. <a href="/terms.html" target="_blank" rel="noopener">새 창에서 보기</a></p>';
+  }
+}
+document.querySelectorAll('.consent-view').forEach(b=>b.onclick=()=>{
+  const doc=b.dataset.doc;
+  consentDocDialog.querySelectorAll('[data-consent-doc]').forEach(el=>el.classList.toggle('hidden',el.dataset.consentDoc!==doc));
+  if(doc==='terms')loadTermsInto();
+  consentDocDialog.showModal();
+  consentDocDialog.scrollTop=0;
+});
+document.querySelector('#consentDocClose').onclick=()=>consentDocDialog.close();
+
+/* 화면 2: 본인확인. 만 19세 미만이면 다음 화면으로 넘기지 않고, 입력값도 지운다(어디에도 저장하지 않음). */
+signupGoLogin.onclick=()=>{resetSignup();showAuthTab('login')};
+signupSteps[1].onsubmit=async e=>{
+  e.preventDefault();
+  signupStep2Error.textContent='';signupGoLogin.classList.add('hidden');
+  const name=document.querySelector('#signupName').value.trim();
+  const birthDate=document.querySelector('#signupBirthDate').value;
+  const gender=document.querySelector('#signupGender').value;
+  const phone=document.querySelector('#signupPhone').value.trim();
+  if(calcAgeClient(birthDate)<19){
+    signupSteps[1].reset();
+    signupStep2Error.textContent='만 19세 이상만 가입하실 수 있습니다.';
+    return;
+  }
+  try{
+    await api('/api/auth/signup/precheck',{method:'POST',body:{name,birthDate,gender,phone}});
+  }catch(err){
+    signupStep2Error.textContent=err.message;
+    if(err.code==='existing_member')signupGoLogin.classList.remove('hidden');
+    if(err.code==='under_age')signupSteps[1].reset();
+    return;
+  }
+  signupIdentity={name,birthDate,gender,phone};
+  document.querySelector('#signupVerifiedName').textContent=name;
+  document.querySelector('#signupVerifiedBirth').textContent=birthDate.replaceAll('-','.');
+  document.querySelector('#signupVerifiedGender').textContent=GENDER_LABEL[gender];
+  document.querySelector('#signupVerifiedPhone').textContent=phone;
+  showSignupStep(3);
+};
+
+/* 화면 3: 회원정보 입력 — 닉네임 실시간 중복확인 */
 const signupNickname=document.querySelector('#signupNickname'),signupNicknameHint=document.querySelector('#signupNicknameHint');
 let nicknameCheckTimer=null,nicknameOk=false;
 signupNickname.addEventListener('input',()=>{
@@ -201,53 +290,44 @@ signupNickname.addEventListener('input',()=>{
   },400);
 });
 
-/* 회원가입: 필수 동의(만 19세/이용약관/개인정보) 3개를 모두 체크해야 제출 버튼이 열린다 —
-   광고성 정보 동의(선택)는 조건에 넣지 않는다. */
-const signupSubmitBtn=document.querySelector('#signupSubmitBtn');
-const agreeAge19=document.querySelector('#agreeAge19'),agreeTerms=document.querySelector('#agreeTerms'),agreePrivacy=document.querySelector('#agreePrivacy');
-function updateSignupSubmitState(){
-  signupSubmitBtn.disabled=!(agreeAge19.checked&&agreeTerms.checked&&agreePrivacy.checked);
-}
-[agreeAge19,agreeTerms,agreePrivacy].forEach(el=>el.addEventListener('change',updateSignupSubmitState));
-
 // "법률상 배우자가 있음"을 고르면 그 자리에서 안내하고 가입을 막는다(이용약관 제5조5항).
 document.querySelectorAll('input[name="signupMarital"]').forEach(el=>el.addEventListener('change',()=>{
-  if(el.value==='married'&&el.checked){
-    signupError.textContent='포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있어요';
-  }else{
-    signupError.textContent='';
-  }
+  signupError.textContent=el.value==='married'&&el.checked?'포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있습니다.':'';
 }));
 
-signupForm.onsubmit=async e=>{
+signupSteps[2].onsubmit=async e=>{
   e.preventDefault();
-  const name=document.querySelector('#signupName').value.trim();
+  if(!signupIdentity){showSignupStep(2);return}
   const nickname=signupNickname.value.trim();
+  const region=document.querySelector('#signupRegion').value;
+  const job=document.querySelector('#signupJob').value.trim();
   const email=document.querySelector('#signupEmail').value.trim();
-  const phone=document.querySelector('#signupPhone').value.trim();
   const password=document.querySelector('#signupPassword').value;
-  const birthDate=document.querySelector('#signupBirthDate').value;
-  const gender=document.querySelector('#signupGender').value;
   const maritalStatus=(document.querySelector('input[name="signupMarital"]:checked')||{}).value||'';
+  const golfExperience=document.querySelector('#signupGolf').value;
+  const interest=document.querySelector('#signupInterest').value;
+  const referrer=document.querySelector('#signupReferrer').value.trim();
+  const intro=document.querySelector('#signupIntro').value.trim();
 
-  if(!name||!email||password.length<8){signupError.textContent='이름, 이메일, 8자 이상 비밀번호를 확인해주세요';return}
   if(!nicknameOk){signupError.textContent='닉네임 확인을 완료해주세요';return}
-  if(birthDate){
-    const age=calcAgeClient(birthDate);
-    if(age<19){signupError.textContent='만 19세 이상만 가입할 수 있어요';return}
-  }
-  if(maritalStatus==='married'){signupError.textContent='포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있어요';return}
+  if(maritalStatus==='married'){signupError.textContent='포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있습니다.';return}
+  if(!region||!job){signupError.textContent='거주 지역과 직업을 입력해주세요';return}
+  if(!golfExperience||!interest){signupError.textContent='골프 구력과 관심 분야를 선택해주세요';return}
+  if(!email||password.length<8){signupError.textContent='이메일과 8자 이상 비밀번호를 확인해주세요';return}
 
   try{
     currentUser=await api('/api/auth/signup',{method:'POST',body:{
-      name,nickname,email,phone,password,birthDate,gender,maritalStatus,
+      ...signupIdentity,nickname,region,job,email,password,maritalStatus,golfExperience,interest,referrer,intro,
       ageAgreed:agreeAge19.checked,termsAgreed:agreeTerms.checked,privacyAgreed:agreePrivacy.checked,
-      marketingAgreed:document.querySelector('#agreeMarketing').checked,
+      marketingAgreed:agreeMarketing.checked,
     }});
-    authDialog.close();renderAuth();
-    showToast(`${nickname}님, 가입 신청이 접수됐어요. 서류 심사와 인터뷰를 거쳐 결과를 안내드릴게요.`);
+    renderAuth();
+    showSignupStep(4);
   }catch(err){signupError.textContent=err.message}
 };
+
+/* 화면 4: 신청 접수 안내 */
+document.querySelector('#signupDoneBtn').onclick=()=>{authDialog.close();resetSignup()};
 
 function calcAgeClient(birthDateStr){
   const birth=new Date(`${birthDateStr}T00:00:00`);
@@ -653,18 +733,21 @@ function openMyApplications(){
 }
 myApplicationsBtn.onclick=openMyApplications;myApplicationsMobile.onclick=openMyApplications;
 
-async function loadMyApplications(){
-  myApplicationsList.innerHTML='<p class="request-empty">불러오는 중...</p>';
-  try{
-    const apps=await api('/api/applications/me');
-    myApplicationsList.innerHTML=apps.length?apps.map(a=>`
-      <div class="request-card">
-        <h4>${esc(a.interest||'멤버십')} 지원서<span class="req-status ${a.status}">${APP_STATUS_LABEL[a.status]}</span></h4>
-        <p>${esc(a.age_group||'-')}${a.region?' · '+esc(a.region):''}</p>
-        ${a.admin_note?`<p>운영진 메모: ${esc(a.admin_note)}</p>`:''}
-        <div class="req-meta">${new Date(a.created_at).toLocaleString('ko-KR')}</div>
-      </div>`).join(''):'<p class="request-empty">아직 제출한 지원서가 없어요</p>';
-  }catch(err){myApplicationsList.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
+// 별도 지원서가 없어졌으므로 "내 지원 현황"은 곧 내 계정의 가입 심사 상태다.
+function loadMyApplications(){
+  const u=currentUser;
+  if(!u){myApplicationsList.innerHTML='<p class="request-empty">로그인 후 확인할 수 있어요</p>';return}
+  if(u.role==='admin'){myApplicationsList.innerHTML='<p class="request-empty">관리자 계정은 심사 대상이 아니에요</p>';return}
+  const note=u.status==='pending'?'서류 심사와 인터뷰를 거쳐 신청일로부터 14일 이내에 결과를 알려드려요.'
+    :u.status==='approved'?'멤버십이 승인됐어요. 모든 기능을 이용하실 수 있어요.'
+    :`아쉽게도 이번 심사에서 승인되지 못했어요.${u.rejectedReason?` (사유: ${esc(u.rejectedReason)})`:''} 거절일로부터 3개월 후 다시 신청하실 수 있어요.`;
+  myApplicationsList.innerHTML=`
+    <div class="request-card">
+      <h4>멤버십 가입 심사<span class="req-status ${u.status}">${APP_STATUS_LABEL[u.status]||u.status}</span></h4>
+      <p>${esc([u.interest==='둘 다'?'골프 · 여행':u.interest,u.golfExperience,u.region].filter(Boolean).join(' · ')||'-')}</p>
+      <p>${note}</p>
+      ${u.createdAt?`<div class="req-meta">${new Date(u.createdAt.replace(' ','T')+'Z').toLocaleString('ko-KR')} 신청</div>`:''}
+    </div>`;
 }
 
 /* ── 코인 ──────────────────────────────────────────────── */
@@ -945,7 +1028,7 @@ chatFileInput.onchange=()=>{
 const callDialog=document.querySelector('#callDialog'),callFrameContainer=document.querySelector('#callFrameContainer');
 const callPartnerName=document.querySelector('#callPartnerName'),callCostHint=document.querySelector('#callCostHint'),callError=document.querySelector('#callError');
 const CALL_COST_PER_SEC={voice:10,video:100};
-let dailyCallFrame=null,callTickTimer=null,activeCallType=null;
+let dailyCallFrame=null,callTickTimer=null,activeCallType=null,activeRoomUrl=null;
 
 async function canEnterCall(){
   try{
@@ -962,7 +1045,7 @@ async function canEnterCall(){
 async function joinCall(roomUrl,callType,partnerName){
   if(!(await canEnterCall())) return;
   if(!window.DailyIframe){showToast('통화 모듈을 불러오지 못했어요. 새로고침 후 다시 시도해주세요');return}
-  activeCallType=callType;
+  activeCallType=callType;activeRoomUrl=roomUrl;
   callError.textContent='';
   callPartnerName.textContent=`${partnerName||chatPartnerName.textContent} — ${callType==='video'?'페이스톡':'보이스톡'}`;
   callCostHint.textContent=`초당 ${CALL_COST_PER_SEC[callType]}코인 사용 중`;
@@ -993,7 +1076,7 @@ function startCallBilling(){
   clearInterval(callTickTimer);
   callTickTimer=setInterval(async()=>{
     try{
-      const res=await api('/api/calls/tick',{method:'POST',body:{callType:activeCallType}});
+      const res=await api('/api/calls/tick',{method:'POST',body:{callType:activeCallType,roomUrl:activeRoomUrl}});
       refreshCoinBadge();
       if(res.shouldEnd){
         showToast(`코인이 ${res.continueMin.toLocaleString()}개 이하로 떨어져 통화를 종료해요. 충전 후 다시 이용해주세요`);

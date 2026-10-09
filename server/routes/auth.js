@@ -15,9 +15,17 @@ const findByEmail = db.prepare('SELECT * FROM users WHERE email = ?');
 const findById = db.prepare('SELECT * FROM users WHERE id = ?');
 const findByNickname = db.prepare('SELECT id FROM users WHERE nickname = ?');
 const insertUser = db.prepare(
-  `INSERT INTO users (name, email, phone, password_hash, role, nickname, birth_date, gender, marital_status, status)
-   VALUES (?, ?, ?, ?, 'member', ?, ?, ?, ?, 'pending')`
+  `INSERT INTO users (name, email, phone, password_hash, role, nickname, birth_date, gender, marital_status, region, job,
+                      golf_experience, interest, referrer, intro, status)
+   VALUES (?, ?, ?, ?, 'member', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
 );
+// 본인확인기관(CI) 연동 전까지는 휴대전화번호, 또는 이름+생년월일이 같은 기존 계정을 같은 사람으로 본다.
+const findSamePerson = db.prepare(`
+  SELECT id, status, suspended_at, rejected_at, withdrawn_at FROM users
+  WHERE role != 'admin'
+    AND (replace(phone, '-', '') = ? OR (name = ? AND birth_date = ?))
+  ORDER BY id DESC
+`);
 const insertConsent = db.prepare(`
   INSERT INTO consent_logs (user_id, consent_type, agreed, document_version, ip_address, user_agent, channel)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -81,6 +89,57 @@ const GENDERS = ['male', 'female'];
 // 'married'는 절대 저장하지 않는다 — 선택 즉시 가입을 막고, 서버도 이 값이 오면 그대로 거부한다(이용약관 제5조5항).
 const STORABLE_MARITAL_STATUSES = ['single', 'divorced_widowed'];
 
+// 회원가입 화면 3의 거주 지역은 시·도 단위 선택이다.
+const REGIONS = [
+  '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
+  '경기도', '강원특별자치도', '충청북도', '충청남도', '전북특별자치도', '전라남도', '경상북도', '경상남도', '제주특별자치도',
+];
+// 회원가입 = 멤버십 지원. 예전 지원서 양식의 선택지를 그대로 쓴다. 관심 분야 값은 카카오 발송 대상
+// 필터(interest_golf/interest_travel)가 그대로 비교하므로 바꾸면 안 된다.
+const GOLF_EXPERIENCES = ['골프는 하지 않음', '입문 (1년 미만)', '1~3년', '3~5년', '5~10년', '10년 이상'];
+const INTERESTS = ['골프', '여행', '둘 다'];
+const INTRO_MAX = 500;
+const WITHDRAW_REJOIN_DAYS = 365;
+const REJECT_REAPPLY_DAYS = 90;
+
+function daysSince(sqliteDatetime) {
+  return (Date.now() - new Date(`${sqliteDatetime.replace(' ', 'T')}Z`).getTime()) / 86400000;
+}
+
+// 같은 사람의 기존 계정이 있으면 가입을 막을 사유를 돌려준다. 제재로 해지된 경우에도 제재 사실은 알리지 않고
+// 탈퇴와 같은 문구를 쓴다(본인은 이미 통지받았고, 화면에 표시하면 타인이 볼 위험이 있음).
+function rejoinBlock(name, birthDate, phone) {
+  const phoneDigits = phone.replace(/-/g, '');
+  for (const user of findSamePerson.all(phoneDigits, name, birthDate)) {
+    if (user.withdrawn_at || user.suspended_at) {
+      const since = user.withdrawn_at || user.suspended_at;
+      if (daysSince(since) < WITHDRAW_REJOIN_DAYS) {
+        return { status: 409, code: 'rejoin_restricted', error: '재가입은 탈퇴일로부터 1년 후 가능합니다.' };
+      }
+      continue;
+    }
+    if (user.status === 'rejected') {
+      if (user.rejected_at && daysSince(user.rejected_at) < REJECT_REAPPLY_DAYS) {
+        return { status: 409, code: 'reapply_restricted', error: '재신청은 거절일로부터 3개월 후 가능합니다.' };
+      }
+      continue;
+    }
+    return { status: 409, code: 'existing_member', error: '이미 가입된 회원입니다. 로그인해 주세요.' };
+  }
+  return null;
+}
+
+// 회원가입 화면 2(본인확인) 값 검증. 만 19세 미만이면 다른 검사보다 먼저 막는다.
+function checkIdentity({ name, birthDate, gender, phone }) {
+  if (!name) return { status: 400, error: '이름을 입력해주세요' };
+  const age = calcAge(birthDate);
+  if (age === null) return { status: 400, error: '생년월일을 확인해주세요' };
+  if (age < 19) return { status: 400, code: 'under_age', error: '만 19세 이상만 가입하실 수 있습니다.' };
+  if (!GENDERS.includes(gender)) return { status: 400, error: '성별을 선택해주세요' };
+  if (!PHONE_RE.test(phone)) return { status: 400, error: '휴대전화번호 형식을 확인해주세요 (예: 010-1234-5678)' };
+  return rejoinBlock(name, birthDate, phone);
+}
+
 function hashCode(code) {
   return crypto.createHash('sha256').update(code).digest('hex');
 }
@@ -112,6 +171,18 @@ router.get('/nickname-available', (req, res) => {
   res.json({ available: !findByNickname.get(nickname) });
 });
 
+// 회원가입 화면 2 → 3으로 넘어가기 전 확인. 아무것도 저장하지 않는다(만 19세 미만 정보는 특히).
+router.post('/signup/precheck', signupLimiter, (req, res) => {
+  const block = checkIdentity({
+    name: String(req.body.name || '').trim(),
+    birthDate: String(req.body.birthDate || '').trim(),
+    gender: String(req.body.gender || ''),
+    phone: String(req.body.phone || '').trim(),
+  });
+  if (block) return res.status(block.status).json({ error: block.error, code: block.code });
+  res.json({ ok: true });
+});
+
 router.post('/signup', signupLimiter, async (req, res) => {
   const name = String(req.body.name || '').trim();
   const email = String(req.body.email || '').trim().toLowerCase();
@@ -121,39 +192,52 @@ router.post('/signup', signupLimiter, async (req, res) => {
   const birthDate = String(req.body.birthDate || '').trim();
   const gender = String(req.body.gender || '');
   const maritalStatus = String(req.body.maritalStatus || '');
+  const region = String(req.body.region || '').trim();
+  const job = String(req.body.job || '').trim().slice(0, 40);
+  const golfExperience = String(req.body.golfExperience || '');
+  const interest = String(req.body.interest || '');
+  const referrer = String(req.body.referrer || '').trim().slice(0, 40);
+  const intro = String(req.body.intro || '').trim();
   const ageAgreed = req.body.ageAgreed === true;
   const termsAgreed = req.body.termsAgreed === true;
   const privacyAgreed = req.body.privacyAgreed === true;
   const marketingAgreed = req.body.marketingAgreed === true;
 
-  if (!name || !email || password.length < 8) {
-    return res.status(400).json({ error: '이름, 이메일, 8자 이상 비밀번호를 확인해주세요' });
+  // 동의 확인이 먼저다 — 동의 없이 받은 개인정보는 검증 과정에서도 쓰지 않는다.
+  if (!ageAgreed || !termsAgreed || !privacyAgreed) {
+    return res.status(400).json({ error: '필수 동의 항목(만 19세 이상, 이용약관, 개인정보 수집·이용)을 모두 체크해주세요' });
   }
-  if (phone && !PHONE_RE.test(phone)) {
-    return res.status(400).json({ error: '연락처 형식을 확인해주세요 (예: 010-1234-5678)' });
+  // 그다음 본인확인 값 — 만 19세 미만이면 그 자리에서 막고, 입력받은 정보는 어디에도 저장하지 않는다.
+  const identityBlock = checkIdentity({ name, birthDate, gender, phone });
+  if (identityBlock) {
+    return res.status(identityBlock.status).json({ error: identityBlock.error, code: identityBlock.code });
+  }
+  if (!email || password.length < 8) {
+    return res.status(400).json({ error: '이메일과 8자 이상 비밀번호를 확인해주세요' });
   }
   if (!NICKNAME_RE.test(nickname) || BANNED_NICKNAME_RE.test(nickname)) {
     return res.status(400).json({ error: '닉네임은 한글/영문/숫자 2~12자로 입력해주세요' });
   }
-  // 나이 확인이 먼저다 — 만 19세 미만이면 그 자리에서 막고, 입력받은 생년월일은 어디에도 저장하지 않는다.
-  const age = calcAge(birthDate);
-  if (age === null) {
-    return res.status(400).json({ error: '생년월일을 확인해주세요' });
+  if (!REGIONS.includes(region)) {
+    return res.status(400).json({ error: '거주 지역을 선택해주세요' });
   }
-  if (age < 19) {
-    return res.status(400).json({ error: '만 19세 이상만 가입할 수 있어요' });
+  if (!job) {
+    return res.status(400).json({ error: '직업을 입력해주세요' });
   }
-  if (!GENDERS.includes(gender)) {
-    return res.status(400).json({ error: '성별을 선택해주세요' });
+  if (!GOLF_EXPERIENCES.includes(golfExperience)) {
+    return res.status(400).json({ error: '골프 구력을 선택해주세요' });
+  }
+  if (!INTERESTS.includes(interest)) {
+    return res.status(400).json({ error: '관심 분야를 선택해주세요' });
+  }
+  if (intro.length > INTRO_MAX) {
+    return res.status(400).json({ error: `소개는 ${INTRO_MAX}자 이내로 적어주세요` });
   }
   if (maritalStatus === 'married') {
     return res.status(400).json({ error: '포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있어요' });
   }
   if (!STORABLE_MARITAL_STATUSES.includes(maritalStatus)) {
     return res.status(400).json({ error: '혼인 여부를 선택해주세요' });
-  }
-  if (!ageAgreed || !termsAgreed || !privacyAgreed) {
-    return res.status(400).json({ error: '필수 동의 항목(만 19세 이상, 이용약관, 개인정보 수집·이용)을 모두 체크해주세요' });
   }
   if (findByEmail.get(email)) {
     return res.status(409).json({ error: '이미 가입된 이메일이에요' });
@@ -168,7 +252,10 @@ router.post('/signup', signupLimiter, async (req, res) => {
   let userId;
   db.exec('BEGIN');
   try {
-    const info = insertUser.run(name, email, phone || null, hashPassword(password), nickname, birthDate, gender, maritalStatus);
+    const info = insertUser.run(
+      name, email, phone, hashPassword(password), nickname, birthDate, gender, maritalStatus, region, job,
+      golfExperience, interest, referrer || null, intro || null
+    );
     userId = info.lastInsertRowid;
     insertConsent.run(userId, 'age19', 1, legalVersions.terms, ip, userAgent, 'signup');
     insertConsent.run(userId, 'terms', 1, legalVersions.terms, ip, userAgent, 'signup');
@@ -187,7 +274,7 @@ router.post('/signup', signupLimiter, async (req, res) => {
     notifyBySms(
       userId,
       phone,
-      `[포레스트클럽] ${name}님, 회원가입 신청이 접수됐어요. 서류 심사와 인터뷰를 거쳐 결과를 안내드릴게요.`,
+      `[포레스트클럽] ${name}님, 멤버십 가입 신청이 접수됐어요. 서류 심사와 인터뷰를 거쳐 결과를 안내드릴게요.`,
       { kind: 'welcome', variables: { name } }
     ).catch((err) => console.error('[notify] signup welcome sms failed', err));
   }

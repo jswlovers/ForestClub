@@ -16,6 +16,7 @@
       <button data-scroll="golf">골프모임</button>
       <button data-scroll="travel">여행모임</button>
       <button data-scroll="membership">멤버십</button>
+      <button data-scroll="reward">여성 회원 혜택</button>
       <button data-scroll="voice">멤버 후기</button>
     </nav>
     <div class="header-actions">
@@ -30,6 +31,7 @@
     <button data-scroll="golf">골프모임</button>
     <button data-scroll="travel">여행모임</button>
     <button data-scroll="membership">멤버십</button>
+    <button data-scroll="reward">여성 회원 혜택</button>
     <button data-scroll="voice">멤버 후기</button>
     <button id="authMobile">로그인</button>
     <button id="profileMobile" class="hidden">내 프로필</button>
@@ -115,6 +117,27 @@
       </div>
     </section>
 
+    <!-- 여성 우수 회원 리워드(server/services/reward-share.js). 숫자는 call-pricing.js 단가와 메시지 500코인의
+         20%로 계산한 값이라, 단가나 비율이 바뀌면 여기도 함께 고쳐야 한다(표시광고법: 광고 = 실제 지급 조건). -->
+    <section class="section" id="reward">
+      <div class="section-head center">
+        <p class="eyebrow gold">WOMEN MEMBER REWARD</p>
+        <h2>나누는 대화가,<br>그대로 혜택이 됩니다</h2>
+        <p class="sub">우수 회원으로 선정된 여성 회원에게는 상대 회원이 나와의 문자·보이스톡·페이스톡에 쓴 코인의 20%를 코인으로 바로 돌려드립니다.</p>
+      </div>
+      <div class="value-grid reward-grid">
+        <article class="value-card"><span class="value-icon">✉</span><h3>문자 1건 받을 때마다</h3><p class="reward-amount">+100 코인</p><p>상대가 쓴 500코인의 20%</p></article>
+        <article class="value-card"><span class="value-icon">☏</span><h3>보이스톡 1분마다</h3><p class="reward-amount">+120 코인</p><p>상대가 쓴 600코인(초당 10코인)의 20%</p></article>
+        <article class="value-card"><span class="value-icon">▶</span><h3>페이스톡 1분마다</h3><p class="reward-amount">+1,200 코인</p><p>상대가 쓴 6,000코인(초당 100코인)의 20%</p></article>
+      </div>
+      <ul class="reward-terms">
+        <li>우수 회원은 가입 승인된 여성 회원 중 운영진이 선정하며, 선정되면 개별 안내해 드립니다.</li>
+        <li>지급된 코인은 무료 코인으로, 문자·통화 등 서비스 이용에 쓸 수 있고 환불·현금 교환·양도는 되지 않습니다.</li>
+        <li>자세한 기준은 <a href="/operating-policy.html">운영정책</a>의 무료 코인 항목을 확인해 주세요.</li>
+      </ul>
+      <div class="apply-cta"><button class="primary" id="applyReward">지금 가입 신청하기 →</button></div>
+    </section>
+
     <section class="voice" id="voice">
       <div class="section-head center light">
         <p class="eyebrow gold">MEMBER VOICE</p>
@@ -134,12 +157,12 @@
         <p class="sub">모든 지원은 아래 4단계를 거쳐 신중하게 검토됩니다.</p>
       </div>
       <div class="step-grid">
-        <div class="step"><span>01</span><h3>온라인 지원서</h3><p>간단한 정보와 자기소개를 제출합니다.</p></div>
+        <div class="step"><span>01</span><h3>회원가입 · 지원</h3><p>회원가입 한 번으로 지원까지 끝납니다. 간단한 정보와 자기소개를 함께 적어주세요.</p></div>
         <div class="step"><span>02</span><h3>서류 심사</h3><p>운영진이 지원 내용을 검토합니다.</p></div>
         <div class="step"><span>03</span><h3>멤버 인터뷰</h3><p>짧은 대화를 통해 서로를 알아갑니다.</p></div>
         <div class="step"><span>04</span><h3>승인 및 웰컴</h3><p>승인 후 웰컴 라운딩에 초대합니다.</p></div>
       </div>
-      <div class="apply-cta"><button class="primary" id="applyBottom">지금 지원서 작성하기 →</button></div>
+      <div class="apply-cta"><button class="primary" id="applyBottom">지금 가입 신청하기 →</button></div>
     </section>
   </main>
 
@@ -156,69 +179,11 @@
 
   <div class="toast" id="toast" role="status"></div>
 
-  <dialog id="applyDialog">
-    <button class="dialog-close" aria-label="닫기">×</button>
-    <span class="dialog-icon">◈</span>
-    <h2>멤버십 지원서</h2>
-    <p class="dialog-sub">프로필을 자세히 남겨주실수록 심사에 도움이 됩니다. 영업일 기준 3일 이내 연락드립니다.</p>
-    <form id="applyForm">
-      <label>성함<input type="text" id="applyName" required placeholder="홍길동"></label>
-      <div class="field-row">
-        <label>연락처<input type="tel" id="applyPhone" required placeholder="010-0000-0000"></label>
-        <label>이메일<input type="email" id="applyEmail" required placeholder="you@example.com"></label>
-      </div>
-      <div class="field-row">
-        <label>연령대
-          <select id="applyAge">
-            <option value="30대 후반">30대 후반</option>
-            <option value="40대 초반">40대 초반</option>
-            <option value="40대 후반">40대 후반</option>
-            <option value="50대 초반">50대 초반</option>
-            <option value="50대 중반">50대 중반</option>
-          </select>
-        </label>
-        <label>거주 지역<input type="text" id="applyRegion" placeholder="예: 서울 강남구"></label>
-      </div>
-      <div class="field-row">
-        <label>직업/업종<input type="text" id="applyJob" placeholder="예: 제조업 대표, 금융업 임원"></label>
-        <label>골프 구력
-          <select id="applyGolf">
-            <option value="골프는 하지 않음">골프는 하지 않음</option>
-            <option value="입문 (1년 미만)">입문 (1년 미만)</option>
-            <option value="1~3년">1~3년</option>
-            <option value="3~5년">3~5년</option>
-            <option value="5~10년">5~10년</option>
-            <option value="10년 이상">10년 이상</option>
-          </select>
-        </label>
-      </div>
-      <label>관심 분야
-        <select id="applyInterest">
-          <option value="골프">골프 모임</option>
-          <option value="여행">여행 모임</option>
-          <option value="둘 다">골프 · 여행 모두</option>
-        </select>
-      </label>
-      <label>추천인 (선택)<input type="text" id="applyReferrer" placeholder="추천해주신 회원 성함이 있다면 적어주세요"></label>
-      <label>간단한 소개<textarea id="applyIntro" placeholder="가입 계기, 이루신 성취 등을 자유롭게 적어주세요" rows="3"></textarea></label>
-      <p class="auth-error" id="applyError"></p>
-      <button class="primary full" type="submit">지원서 제출하기</button>
-    </form>
-  </dialog>
-
-  <dialog id="doneDialog">
-    <button class="dialog-close" aria-label="닫기">×</button>
-    <span class="dialog-icon">✓</span>
-    <h2>지원이 접수되었습니다</h2>
-    <p class="dialog-sub" id="doneText"></p>
-    <button class="primary full" id="doneClose">확인</button>
-  </dialog>
-
   <dialog id="authDialog">
     <button class="dialog-close" aria-label="닫기">×</button>
     <span class="dialog-icon">◈</span>
     <h2>포레스트클럽</h2>
-    <div class="auth-tabs"><button type="button" class="auth-tab active" data-tab="login">로그인</button><button type="button" class="auth-tab" data-tab="signup">회원가입</button></div>
+    <div class="auth-tabs"><button type="button" class="auth-tab active" data-tab="login">로그인</button><button type="button" class="auth-tab" data-tab="signup">회원가입 · 멤버십 지원</button></div>
     <form id="loginForm" class="auth-form">
       <label>이메일<input type="email" id="loginEmail" required placeholder="you@example.com"></label>
       <label>비밀번호<input type="password" id="loginPassword" required placeholder="비밀번호"></label>
@@ -226,43 +191,179 @@
       <button class="primary full" type="submit">로그인</button>
       <button type="button" class="text-btn forgot-link" id="forgotPasswordLink">비밀번호를 잊으셨나요?</button>
     </form>
-    <form id="signupForm" class="auth-form hidden">
-      <label>이름<input type="text" id="signupName" required placeholder="홍길동"></label>
-      <label>닉네임 (다른 회원에게 보여지는 이름)
-        <input type="text" id="signupNickname" required placeholder="2~12자 한글/영문/숫자" maxlength="12">
-        <span class="member-hint" id="signupNicknameHint"></span>
-      </label>
-      <label>이메일<input type="email" id="signupEmail" required placeholder="you@example.com"></label>
-      <label>연락처 (가입/동행 신청 알림 문자를 받으실 번호)<input type="tel" id="signupPhone" placeholder="010-0000-0000"></label>
-      <label>비밀번호<input type="password" id="signupPassword" required placeholder="8자 이상" minlength="8"></label>
-      <div class="field-row">
-        <label>생년월일<input type="date" id="signupBirthDate" required></label>
-        <label>성별
-          <select id="signupGender" required>
-            <option value="">선택</option>
-            <option value="male">남성</option>
-            <option value="female">여성</option>
-          </select>
+    <!-- 회원가입은 4단계로 나눈다(회원가입 화면 구현 명세): 약관 동의 → 본인확인 → 회원정보 입력 → 신청 완료.
+         개인정보를 입력받기 전에 동의를 먼저 받고, 본인확인 단계에서 만 19세 미만을 걸러 미성년자 정보는 아예 받지 않는다. -->
+    <div id="signupForm" class="auth-form hidden">
+      <ol class="signup-steps" aria-label="가입 단계">
+        <li data-step="1" class="active">약관 동의</li>
+        <li data-step="2">본인확인</li>
+        <li data-step="3">회원정보</li>
+        <li data-step="4">신청 완료</li>
+      </ol>
+
+      <!-- 화면 1: 약관 동의. 체크박스는 4개로 분리, 전부 해제 상태로 시작한다. -->
+      <form id="signupStep1" class="signup-step">
+        <label class="consent-row consent-all"><input type="checkbox" id="agreeAll"> <span>전체 동의 (선택 항목 포함)</span></label>
+        <div class="consent-list">
+          <div class="consent-item">
+            <label class="consent-row"><input type="checkbox" id="agreeAge19"> <span><em class="consent-tag required">(필수)</em> 만 19세 이상입니다</span></label>
+          </div>
+          <div class="consent-item">
+            <label class="consent-row"><input type="checkbox" id="agreeTerms"> <span><em class="consent-tag required">(필수)</em> 이용약관에 동의합니다</span></label>
+            <button type="button" class="consent-view" data-doc="terms">보기</button>
+          </div>
+          <div class="consent-item">
+            <label class="consent-row"><input type="checkbox" id="agreePrivacy"> <span><em class="consent-tag required">(필수)</em> 개인정보 수집·이용에 동의합니다</span></label>
+            <button type="button" class="consent-view" data-doc="privacy">보기</button>
+          </div>
+          <div class="consent-item optional">
+            <label class="consent-row"><input type="checkbox" id="agreeMarketing"> <span><em class="consent-tag optional">(선택)</em> 광고성 정보 수신에 동의합니다</span></label>
+            <button type="button" class="consent-view" data-doc="marketing">보기</button>
+          </div>
+        </div>
+        <p class="signup-notice">회원가입이 곧 멤버십 지원이에요. 따로 지원서를 쓰실 필요 없이, 가입 신청 후 서류 심사와 인터뷰가 진행됩니다. 결과는 신청일로부터 14일 이내에 알려드립니다.</p>
+        <button class="primary full" type="submit" id="signupStep1Next" disabled>다음</button>
+      </form>
+
+      <!-- 화면 2: 휴대전화 본인확인. 본인확인기관이 정해지면 이 입력칸은 기관 응답값(이름·생년월일·성별·휴대전화·CI/DI)으로 대체된다.
+           주민등록번호와 신분증 이미지는 어떤 형태로도 받지 않는다. -->
+      <form id="signupStep2" class="signup-step hidden">
+        <p class="dialog-sub">휴대전화 본인확인 서비스는 연동 준비 중이에요. 그전까지는 본인 명의 정보를 직접 입력해 주세요. 확인된 정보는 다음 단계에서 수정할 수 없어요.</p>
+        <label>이름<input type="text" id="signupName" required placeholder="홍길동" autocomplete="name"></label>
+        <div class="field-row">
+          <label>생년월일<input type="date" id="signupBirthDate" required></label>
+          <label>성별
+            <select id="signupGender" required>
+              <option value="">선택</option>
+              <option value="male">남성</option>
+              <option value="female">여성</option>
+            </select>
+          </label>
+        </div>
+        <label>휴대전화번호<input type="tel" id="signupPhone" required placeholder="010-0000-0000" autocomplete="tel"></label>
+        <p class="auth-error" id="signupStep2Error"></p>
+        <button type="button" class="text-btn hidden" id="signupGoLogin">로그인하러 가기</button>
+        <div class="signup-nav">
+          <button type="button" class="ghost" data-signup-back="1">이전</button>
+          <button class="primary" type="submit">본인확인</button>
+        </div>
+      </form>
+
+      <!-- 화면 3: 회원정보 입력 -->
+      <form id="signupStep3" class="signup-step hidden">
+        <div class="signup-verified">
+          <div><span>이름</span><strong id="signupVerifiedName"></strong></div>
+          <div><span>생년월일</span><strong id="signupVerifiedBirth"></strong></div>
+          <div><span>성별</span><strong id="signupVerifiedGender"></strong></div>
+          <div><span>휴대전화</span><strong id="signupVerifiedPhone"></strong></div>
+        </div>
+        <p class="member-hint">본인확인 정보는 수정할 수 없어요. 이름·생년월일은 다른 회원에게 공개되지 않고, 나이(만 나이)만 표시돼요.</p>
+        <label>닉네임 (다른 회원에게 보여지는 이름)
+          <input type="text" id="signupNickname" required placeholder="2~12자 한글/영문/숫자" maxlength="12">
+          <span class="member-hint" id="signupNicknameHint"></span>
         </label>
+        <div class="field-row">
+          <label>거주 지역
+            <select id="signupRegion" required>
+              <option value="">시·도 선택</option>
+              <option>서울특별시</option><option>부산광역시</option><option>대구광역시</option><option>인천광역시</option>
+              <option>광주광역시</option><option>대전광역시</option><option>울산광역시</option><option>세종특별자치시</option>
+              <option>경기도</option><option>강원특별자치도</option><option>충청북도</option><option>충청남도</option>
+              <option>전북특별자치도</option><option>전라남도</option><option>경상북도</option><option>경상남도</option>
+              <option>제주특별자치도</option>
+            </select>
+          </label>
+          <label>직업<input type="text" id="signupJob" required maxlength="40" placeholder="예: 제조업 대표"></label>
+        </div>
+        <fieldset class="marital-fieldset">
+          <legend>혼인 여부 (다른 회원에게 공개되지 않아요)</legend>
+          <label class="radio-row"><input type="radio" name="signupMarital" value="single" required> 미혼</label>
+          <label class="radio-row"><input type="radio" name="signupMarital" value="divorced_widowed"> 이혼 또는 사별</label>
+          <label class="radio-row"><input type="radio" name="signupMarital" value="married"> 법률상 배우자가 있음</label>
+        </fieldset>
+        <hr class="profile-divider">
+        <p class="member-hint">아래 내용은 멤버십 심사에 참고돼요. 자세히 적어주실수록 심사에 도움이 됩니다.</p>
+        <div class="field-row">
+          <label>골프 구력
+            <select id="signupGolf" required>
+              <option value="">선택</option>
+              <option>골프는 하지 않음</option>
+              <option>입문 (1년 미만)</option>
+              <option>1~3년</option>
+              <option>3~5년</option>
+              <option>5~10년</option>
+              <option>10년 이상</option>
+            </select>
+          </label>
+          <label>관심 분야
+            <select id="signupInterest" required>
+              <option value="">선택</option>
+              <option value="골프">골프 모임</option>
+              <option value="여행">여행 모임</option>
+              <option value="둘 다">골프 · 여행 모두</option>
+            </select>
+          </label>
+        </div>
+        <label>추천인 (선택)<input type="text" id="signupReferrer" maxlength="40" placeholder="추천해주신 회원 성함이 있다면 적어주세요"></label>
+        <label>간단한 소개 (선택)<textarea id="signupIntro" maxlength="500" rows="3" placeholder="가입 계기, 이루신 성취 등을 자유롭게 적어주세요"></textarea></label>
+        <hr class="profile-divider">
+        <label>이메일 (로그인 아이디)<input type="email" id="signupEmail" required placeholder="you@example.com" autocomplete="email"></label>
+        <label>비밀번호<input type="password" id="signupPassword" required placeholder="8자 이상" minlength="8" autocomplete="new-password"></label>
+        <p class="auth-error" id="signupError"></p>
+        <div class="signup-nav">
+          <button type="button" class="ghost" data-signup-back="2">이전</button>
+          <button class="primary" type="submit" id="signupSubmitBtn">가입 신청하기</button>
+        </div>
+      </form>
+
+      <!-- 화면 4: 신청 완료. 심사를 거치므로 "가입 완료"가 아니라 "신청 접수"로 표현한다. -->
+      <div id="signupStep4" class="signup-step hidden">
+        <p class="signup-done">멤버십 가입 신청이 접수되었습니다. 서류 심사와 인터뷰를 거쳐 신청일로부터 14일 이내에 결과를 알려드립니다.</p>
+        <p class="member-hint">승인 전까지는 신청 현황 조회와 탈퇴만 이용하실 수 있어요.</p>
+        <button type="button" class="primary full" id="signupDoneBtn">확인</button>
       </div>
-      <fieldset class="marital-fieldset">
-        <legend>혼인 여부</legend>
-        <label class="radio-row"><input type="radio" name="signupMarital" value="single" required> 미혼</label>
-        <label class="radio-row"><input type="radio" name="signupMarital" value="divorced_widowed"> 이혼 또는 사별</label>
-        <label class="radio-row"><input type="radio" name="signupMarital" value="married"> 법률상 배우자가 있음</label>
-      </fieldset>
-      <p class="member-hint">포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있어요.</p>
+    </div>
+  </dialog>
 
-      <hr class="profile-divider">
-      <label class="consent-row"><input type="checkbox" id="agreeAge19" required> <span>[필수] 만 19세 이상입니다</span></label>
-      <label class="consent-row"><input type="checkbox" id="agreeTerms" required> <span>[필수] <a href="/terms.html" target="_blank" rel="noopener">이용약관</a>에 동의합니다</span></label>
-      <label class="consent-row"><input type="checkbox" id="agreePrivacy" required> <span>[필수] <a href="/privacy.html" target="_blank" rel="noopener">개인정보 수집·이용</a>에 동의합니다</span></label>
-      <label class="consent-row"><input type="checkbox" id="agreeMarketing"> <span>[선택] 카카오톡·문자로 이벤트, 모임 소식 등 광고성 정보 수신에 동의합니다</span></label>
-
-      <p class="auth-error" id="signupError"></p>
-      <button class="primary full" type="submit" id="signupSubmitBtn" disabled>회원가입 신청하기</button>
-      <p class="member-hint">가입 신청 후 서류 심사와 인터뷰를 거쳐 승인 여부를 안내드려요.</p>
-    </form>
+  <!-- 동의 항목 전문. 가입 화면 위에 겹쳐 띄우므로 닫아도 체크 상태가 그대로 유지된다. -->
+  <dialog id="consentDocDialog" class="consent-doc-dialog">
+    <button class="dialog-close" aria-label="닫기">×</button>
+    <div data-consent-doc="terms" class="hidden">
+      <h2>이용약관</h2>
+      <div class="consent-doc-scroll legal-page" id="consentTermsBody">불러오는 중...</div>
+      <p class="consent-doc-meta">개정일자 <span id="consentTermsVersion">-</span></p>
+    </div>
+    <div data-consent-doc="privacy" class="hidden">
+      <h2>개인정보 수집·이용 동의</h2>
+      <div class="legal-page consent-doc-body">
+        <table>
+          <thead><tr><th>수집 항목</th><th>이용 목적</th><th>보유 기간</th></tr></thead>
+          <tbody>
+            <tr><td>이름, 생년월일, 휴대전화번호, 본인확인값</td><td>회원 식별 및 본인확인</td><td>탈퇴 후 1년</td></tr>
+            <tr><td>성별, 거주 지역, 직업, 닉네임</td><td>회원 프로필 제공</td><td>탈퇴 시까지</td></tr>
+            <tr><td>혼인 여부</td><td>회원 자격 확인</td><td>탈퇴 시까지</td></tr>
+            <tr><td>접속 IP, 기기 정보</td><td>부정 이용 방지</td><td>3개월</td></tr>
+          </tbody>
+        </table>
+        <p><strong>귀하는 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. 다만 동의를 거부하실 경우 회원가입이 제한됩니다.</strong></p>
+        <p><a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침 전문 보기</a></p>
+      </div>
+    </div>
+    <div data-consent-doc="marketing" class="hidden">
+      <h2>광고성 정보 수신 동의</h2>
+      <div class="legal-page consent-doc-body">
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>전송 수단</td><td>카카오톡, 문자메시지</td></tr>
+            <tr><td>전송 내용</td><td>이벤트, 모임 안내, 혜택 정보</td></tr>
+            <tr><td>보유 기간</td><td>동의 철회 시까지</td></tr>
+          </tbody>
+        </table>
+        <p><strong>동의하지 않으셔도 회원가입 및 서비스 이용이 가능합니다. 동의 후에도 언제든지 설정에서 철회하실 수 있습니다.</strong></p>
+      </div>
+    </div>
+    <button type="button" class="primary full" id="consentDocClose">확인</button>
   </dialog>
 
   <dialog id="resetDialog">

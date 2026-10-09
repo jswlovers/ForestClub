@@ -1,6 +1,10 @@
 const db = require('../db');
 const { sendSms } = require('./sms');
 const { sendAlimtalk } = require('./kakao');
+const { pushToUser, pushBody } = require('./push');
+
+// 인증번호처럼 문자로만 보내야 하는 알림은 앱 푸시로 보내지 않는다.
+const SMS_ONLY_KINDS = new Set(['password_reset']);
 
 const insertNotification = db.prepare(`
   INSERT INTO notifications (user_id, phone, channel, message, status, provider_response)
@@ -43,8 +47,12 @@ const TEMPLATE_ENV = {
  * @param {{kind?: string, variables?: Record<string,string>}} [options]
  */
 async function notifyBySms(userId, phone, text, options = {}) {
-  if (!phone) return null;
   const { kind, variables = {} } = options;
+  // 앱 푸시는 문자와 별도로 함께 보낸다(앱을 설치한 회원만 받는다).
+  if (!SMS_ONLY_KINDS.has(kind)) {
+    pushToUser(userId, { title: '포레스트클럽', body: pushBody(text), url: process.env.PUBLIC_URL });
+  }
+  if (!phone) return null;
 
   const templateEnvKey = kind && TEMPLATE_ENV[kind];
   const templateId = templateEnvKey && process.env[templateEnvKey];

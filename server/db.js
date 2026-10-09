@@ -265,6 +265,10 @@ ensureColumn('users', 'status', `TEXT NOT NULL DEFAULT 'approved'`);
 ensureColumn('users', 'rejected_at', 'TEXT');
 ensureColumn('users', 'rejected_reason', 'TEXT');
 ensureColumn('users', 'withdrawn_at', 'TEXT');
+// 멤버십 지원서를 회원가입에 합치면서 지원서에만 있던 추천인 항목을 회원 정보로 옮겼다.
+ensureColumn('users', 'referrer', 'TEXT');
+// 여성 우수 회원 리워드 대상으로 관리자가 지정한 시각. NULL이면 대상 아님(services/reward-share.js).
+ensureColumn('users', 'reward_member_at', 'TEXT');
 
 // coin_type: 'free'(무료 지급) | 'paid'(구매/충전). 기존에 쌓인 691건은 전부 실제 충전·소비였으므로
 // 'paid' 기본값으로 백필해도 회계상 맞다.

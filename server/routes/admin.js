@@ -11,7 +11,8 @@ router.use(requireAdmin);
 
 const listUsers = db.prepare(`
   SELECT u.id, u.name, u.nickname, u.email, u.phone, u.role, u.created_at, u.suspended_at, u.suspended_reason,
-    u.gender, u.birth_date, u.marital_status, u.status, u.rejected_at, u.rejected_reason, u.withdrawn_at,
+    u.gender, u.birth_date, u.marital_status, u.region, u.job, u.golf_experience, u.interest, u.referrer, u.intro,
+    u.status, u.reward_member_at, u.rejected_at, u.rejected_reason, u.withdrawn_at,
     u.verified_identity_at, u.verified_employment_at, u.verified_golf_at,
     COALESCE((
       SELECT SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END)
@@ -134,6 +135,22 @@ router.post('/users/:id/reject', (req, res) => {
   ).catch((err) => console.error('[notify] member reject sms failed', err));
 
   res.json({ ok: true });
+});
+
+// 여성 우수 회원 리워드 대상 지정/해제(services/reward-share.js). 여성 회원만 지정할 수 있다.
+const setRewardMember = db.prepare(`UPDATE users SET reward_member_at = datetime('now') WHERE id = ?`);
+const clearRewardMember = db.prepare('UPDATE users SET reward_member_at = NULL WHERE id = ?');
+router.post('/users/:id/reward-member', (req, res) => {
+  const target = getUserById.get(Number(req.params.id));
+  if (!target || target.role === 'admin') return res.status(404).json({ error: '회원을 찾을 수 없어요' });
+  if (req.body?.enabled === false) {
+    clearRewardMember.run(target.id);
+    return res.json({ ok: true, enabled: false });
+  }
+  if (target.gender !== 'female') return res.status(400).json({ error: '우수 회원 리워드는 여성 회원만 지정할 수 있어요' });
+  if (target.status !== 'approved') return res.status(400).json({ error: '가입 승인된 회원만 지정할 수 있어요' });
+  setRewardMember.run(target.id);
+  res.json({ ok: true, enabled: true });
 });
 
 // 인증 배지 부여/해제. 심사(재직/골프 구력 등)를 확인한 관리자가 수동으로 표시한다.
@@ -282,6 +299,40 @@ router.post('/coin-charges/:id/reject', (req, res) => {
 
 router.get('/coin-ledger', (req, res) => {
   res.json(getRecentLedger());
+});
+
+// 코인 발행 현황. "발행"은 회원 코인 계정에 들어간(대변) 코인 전부 — 유료 충전과 무료 지급(웰컴·출석·리워드 등).
+// "사용·회수"는 회원 계정에서 나간(차변) 코인 — 문자·통화 사용, 모임 몰수, 환불 회수. 잔액 = 발행 - 사용·회수.
+const coinIssuanceByMember = db.prepare(`
+  SELECT u.id, u.name, u.nickname, u.email, u.gender, u.status, u.withdrawn_at, u.reward_member_at,
+    COALESCE(SUM(CASE WHEN l.direction = 'credit' AND l.coin_type = 'paid' THEN l.amount END), 0) AS issued_paid,
+    COALESCE(SUM(CASE WHEN l.direction = 'credit' AND l.coin_type = 'free' THEN l.amount END), 0) AS issued_free,
+    COALESCE(SUM(CASE WHEN l.direction = 'debit' AND l.coin_type = 'paid' THEN l.amount END), 0) AS spent_paid,
+    COALESCE(SUM(CASE WHEN l.direction = 'debit' AND l.coin_type = 'free' THEN l.amount END), 0) AS spent_free
+  FROM users u
+  LEFT JOIN coin_ledger l ON l.account = 'user:' || u.id
+  WHERE u.role != 'admin'
+  GROUP BY u.id
+`);
+router.get('/coin-issuance', (req, res) => {
+  const members = coinIssuanceByMember.all().map((m) => {
+    const issued = m.issued_paid + m.issued_free;
+    const spent = m.spent_paid + m.spent_free;
+    return {
+      ...m, issued, spent, balance: issued - spent,
+      balance_paid: m.issued_paid - m.spent_paid, balance_free: m.issued_free - m.spent_free,
+    };
+  });
+  members.sort((a, b) => b.balance - a.balance || b.issued - a.issued || a.id - b.id);
+  const sum = (key) => members.reduce((s, m) => s + m[key], 0);
+  res.json({
+    summary: {
+      issued: sum('issued'), issuedPaid: sum('issued_paid'), issuedFree: sum('issued_free'),
+      spent: sum('spent'), balance: sum('balance'), balancePaid: sum('balance_paid'), balanceFree: sum('balance_free'),
+      holders: members.filter((m) => m.balance > 0).length, members: members.length,
+    },
+    members,
+  });
 });
 
 const listTickets = db.prepare(`

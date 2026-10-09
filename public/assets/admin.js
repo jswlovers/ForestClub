@@ -68,7 +68,7 @@ document.querySelectorAll('.admin-tab').forEach(t=>t.onclick=()=>{
 });
 
 async function loadAll(){
-  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadAttendances(),loadTickets(),loadCoinCharges(),loadCoinLedger(),loadSettings(),loadNotifications(),loadKakao()]);
+  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadAttendances(),loadTickets(),loadCoinCharges(),loadCoinIssuance(),loadCoinLedger(),loadSettings(),loadNotifications(),loadKakao()]);
 }
 
 const REPORT_WARN_THRESHOLD=3,REPORT_SUSPEND_THRESHOLD=5;
@@ -93,13 +93,22 @@ function signupStatusPill(u){
   return `<span class="status-pill ${cls}" title="${esc(u.rejected_reason||'')}">${SIGNUP_STATUS_LABEL[u.status]||u.status}</span>`;
 }
 
+// 회원가입이 곧 멤버십 지원이라, 심사에 필요한 지원 내용은 회원 행에서 바로 펼쳐 본다.
+function applicationSummary(u){
+  const rows=[['지역',u.region],['직업',u.job],['골프 구력',u.golf_experience],['관심 분야',u.interest],['추천인',u.referrer],['소개',u.intro]]
+    .filter(([,v])=>v);
+  if(!rows.length) return '-';
+  return `<details class="app-summary"><summary>보기</summary><dl>${rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></details>`;
+}
+
 async function loadUsers(){
   const users=await api('/api/admin/users');
   document.querySelector('#usersCount').textContent=`총 ${users.length}명`;
   document.querySelector('#usersBody').innerHTML=users.map(u=>`
     <tr data-id="${u.id}">
       <td>${esc(u.name)}</td><td>${esc(u.nickname||'-')}</td><td>${esc(u.email)}</td><td>${esc(u.phone||'-')}</td><td>${u.role==='admin'?'관리자':'회원'}</td>
-      <td>${GENDER_LABEL[u.gender]||'-'}</td><td>${u.coins.toLocaleString()}</td>
+      <td>${GENDER_LABEL[u.gender]||'-'}${u.reward_member_at?' <span class="status-pill approved" title="여성 우수 회원 리워드 대상">우수</span>':''}</td><td>${u.coins.toLocaleString()}</td>
+      <td>${u.role==='admin'?'-':applicationSummary(u)}</td>
       <td>${u.role==='admin'?'-':signupStatusPill(u)}</td>
       <td>${u.suspended_at?`<span class="status-pill suspended" title="${esc(u.suspended_reason||'')}">정지됨</span>`:'<span class="status-pill approved">정상</span>'}</td>
       <td>${u.report_count?`<span class="status-pill ${u.report_count>=REPORT_SUSPEND_THRESHOLD?'suspended':(u.report_count>=REPORT_WARN_THRESHOLD?'pending':'')}">${u.report_count}건</span>`:'-'}</td>
@@ -107,12 +116,13 @@ async function loadUsers(){
       <td>${fmt(u.created_at)}</td>
       <td>
         ${u.role==='admin'?'-':`<div class="row-actions">
+          ${u.gender==='female'&&u.status==='approved'?(u.reward_member_at?`<button class="reject-btn" data-action="reward-member" data-on="true" data-id="${u.id}">우수 해제</button>`:`<button class="approve-btn" data-action="reward-member" data-on="false" data-id="${u.id}">우수 지정</button>`):''}
           ${u.status==='pending'?`<button class="approve-btn" data-action="approve-member" data-id="${u.id}">가입 승인</button><button class="reject-btn" data-action="reject-member" data-id="${u.id}">가입 거절</button>`:''}
           ${u.suspended_at?`<button class="approve-btn" data-action="unsuspend" data-id="${u.id}">정지 해제</button>`:`<button class="reject-btn" data-action="suspend" data-id="${u.id}">이용 정지</button>`}
         </div>`}
       </td>
     </tr>
-  `).join('')||'<tr><td colspan="13">회원이 없어요</td></tr>';
+  `).join('')||'<tr><td colspan="14">회원이 없어요</td></tr>';
 
   const notifyUser=document.querySelector('#notifyUser');
   const withPhone=users.filter(u=>u.role!=='admin'&&u.phone);
@@ -128,6 +138,16 @@ document.querySelector('#usersBody').addEventListener('click',async e=>{
     try{
       const verified=btn.dataset.on!=='true';
       await api(`/api/admin/users/${btn.dataset.id}/verify`,{method:'POST',body:{type:btn.dataset.type,verified}});
+      loadUsers();
+    }catch(err){showToast(err.message)}
+    return;
+  }
+  if(btn.dataset.action==='reward-member'){
+    const enabled=btn.dataset.on!=='true';
+    if(!confirm(enabled?'이 회원을 우수 회원으로 지정할까요? 상대가 이 회원과의 문자·통화에 쓴 코인의 20%가 무료 코인으로 즉시 지급돼요.':'우수 회원 지정을 해제할까요? 이후 리워드 지급이 멈춰요.')) return;
+    try{
+      await api(`/api/admin/users/${btn.dataset.id}/reward-member`,{method:'POST',body:{enabled}});
+      showToast(enabled?'우수 회원으로 지정했어요':'우수 회원 지정을 해제했어요');
       loadUsers();
     }catch(err){showToast(err.message)}
     return;
@@ -547,13 +567,30 @@ document.querySelector('#coinChargesBody').addEventListener('click',async e=>{
   try{
     await api(`/api/admin/coin-charges/${btn.dataset.id}/${btn.dataset.action}`,{method:'POST',body});
     showToast(btn.dataset.action==='approve'?'승인 처리했어요. 코인이 지급되고 안내 알림을 보냈어요':'거절 처리했어요. 안내 알림을 보냈어요');
-    loadCoinCharges();loadCoinLedger();loadUsers();loadNotifications();
+    loadCoinCharges();loadCoinIssuance();loadCoinLedger();loadUsers();loadNotifications();
   }catch(err){showToast(err.message)}
 });
 
 const LEDGER_ACCOUNT_LABEL={'platform:cash':'플랫폼 현금','platform:revenue':'플랫폼 매출'};
-const LEDGER_TYPE_LABEL={purchase:'코인 충전',message_spend:'쪽지 발송',call_voice_spend:'보이스톡 이용',call_video_spend:'페이스톡 이용',refund:'환불 지급'};
+const LEDGER_TYPE_LABEL={purchase:'코인 충전',message_spend:'쪽지 발송',call_voice_spend:'보이스톡 이용',call_video_spend:'페이스톡 이용',refund:'환불 지급',reward_share_message:'우수 회원 리워드(문자)',reward_share_voice:'우수 회원 리워드(보이스톡)',reward_share_video:'우수 회원 리워드(페이스톡)'};
 const LEDGER_DIRECTION_LABEL={debit:'차변',credit:'대변'};
+
+async function loadCoinIssuance(){
+  const {summary:s,members}=await api('/api/admin/coin-issuance');
+  const n=v=>v.toLocaleString();
+  document.querySelector('#coinIssuanceCount').textContent=`회원 ${n(s.members)}명 · 보유 ${n(s.holders)}명`;
+  document.querySelector('#coinIssuanceStats').innerHTML=`
+    <div class="coin-stat main"><span>총 발행 코인</span><strong>${n(s.issued)}</strong><small>유료 ${n(s.issuedPaid)} · 무료 ${n(s.issuedFree)}</small></div>
+    <div class="coin-stat"><span>누적 사용·회수</span><strong>${n(s.spent)}</strong></div>
+    <div class="coin-stat"><span>현재 유통 잔액</span><strong>${n(s.balance)}</strong><small>유료 ${n(s.balancePaid)} · 무료 ${n(s.balanceFree)}</small></div>`;
+  document.querySelector('#coinIssuanceBody').innerHTML=members.map((m,i)=>`
+    <tr><td>${i+1}</td><td>${esc(m.name)}</td><td>${esc(m.nickname||'-')}</td><td>${esc(m.email)}</td>
+    <td>${GENDER_LABEL[m.gender]||'-'}${m.reward_member_at?' <span class="status-pill approved">우수</span>':''}</td>
+    <td><strong>${n(m.balance)}</strong></td><td>${n(m.balance_paid)}</td><td>${n(m.balance_free)}</td>
+    <td>${n(m.issued)}</td><td>${n(m.spent)}</td>
+    <td>${m.withdrawn_at?'<span class="status-pill suspended">탈퇴</span>':signupStatusPill(m)}</td></tr>
+  `).join('')||'<tr><td colspan="11">회원이 없어요</td></tr>';
+}
 
 async function loadCoinLedger(){
   const list=await api('/api/admin/coin-ledger');

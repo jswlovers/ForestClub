@@ -134,6 +134,10 @@ button{cursor:pointer}
 .step h3{font-size:16.5px;margin:14px 0 8px;font-weight:600}
 .step p{font-size:13px;color:var(--muted);margin:0;line-height:1.7}
 .apply-cta{text-align:center}
+.reward-grid{grid-template-columns:repeat(3,1fr);margin-bottom:28px}
+.reward-amount{font-size:26px!important;font-weight:700;color:var(--gold)!important;margin:4px 0 6px!important}
+.reward-terms{max-width:720px;margin:0 auto 32px;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.8}
+.reward-terms a{color:var(--forest);text-decoration:underline}
 
 /* footer */
 .footer{text-align:center;padding:50px 24px;color:#8b9088;font-size:12.5px;background:var(--forest-deep)}
@@ -250,9 +254,49 @@ dialog h2{margin:16px 0 6px;font-size:22px}
 }
 
 /* 동의 체크박스 (프로필 화면의 광고성 정보 동의 + 회원가입 화면의 4개 분리 체크박스) */
-#profileForm .consent-row,#signupForm .consent-row{display:flex;gap:10px;align-items:flex-start;font-weight:400;line-height:1.55;font-size:12.5px;color:var(--muted);margin:14px 0 0}
-#profileForm .consent-row input,#signupForm .consent-row input{width:auto;margin-top:3px;flex:none}
+/* 동의 문구는 본문(14px)보다 작게 하지 않는다 — 가독성이 떨어지면 고지로 인정받기 어렵다(회원가입 명세). */
+#profileForm .consent-row,#signupForm .consent-row{display:flex;gap:10px;align-items:flex-start;font-weight:400;line-height:1.55;font-size:14px;color:var(--ink);margin:14px 0 0}
+#profileForm .consent-row input,#signupForm .consent-row input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--forest)}
 #signupForm .consent-row a{color:var(--forest);font-weight:700}
+
+/* 회원가입 단계 표시 */
+.signup-steps{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0;margin:18px 0 6px;counter-reset:step}
+.signup-steps li{counter-increment:step;text-align:center;font-size:12px;font-weight:600;color:#9a9a8f;padding-top:8px;border-top:3px solid var(--line)}
+.signup-steps li::before{content:counter(step) ". "}
+.signup-steps li.done{color:var(--forest);border-top-color:var(--gold-light)}
+.signup-steps li.active{color:var(--forest);border-top-color:var(--forest)}
+
+/* 화면 1: 약관 동의. 전체 동의 아래 개별 항목은 항상 펼쳐 둔다. 선택 항목은 필수와 시각적으로 구분한다. */
+#signupForm .consent-all{font-weight:700;font-size:15px;padding:14px;border:1px solid var(--forest);border-radius:12px;background:#f7f4ec;margin-top:16px}
+.consent-list{margin:6px 0 0;padding:0 4px}
+.consent-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.consent-item .consent-row{flex:1}
+.consent-item.optional{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.consent-item.optional .consent-row{color:#4c534b}
+.consent-tag{font-style:normal;font-weight:700;margin-right:2px}
+.consent-tag.required{color:var(--forest)}
+.consent-tag.optional{color:#8a8f86}
+.consent-view{flex:none;border:0;background:none;color:var(--forest);font-size:13.5px;font-weight:600;text-decoration:underline;padding:0;margin-top:15px}
+.signup-notice{font-size:14px;color:#4c534b;line-height:1.65;background:#f7f4ec;border-radius:12px;padding:12px 14px;margin:20px 0 0}
+.signup-nav{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:18px}
+.signup-nav .primary{margin-top:0}
+#signupGoLogin{margin-top:6px;text-decoration:underline}
+
+/* 화면 3: 본인확인된 값(수정 불가) */
+.signup-verified{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;background:#f7f4ec;border-radius:12px;padding:14px;margin-top:16px}
+.signup-verified span{display:block;font-size:12px;color:var(--muted)}
+.signup-verified strong{font-size:14px}
+
+/* 화면 4: 신청 접수 */
+.signup-done{font-size:15px;line-height:1.75;color:var(--ink);background:#f7f4ec;border-radius:12px;padding:18px;margin:20px 0 10px}
+
+/* 동의 항목 전문 */
+.consent-doc-dialog{width:min(640px,calc(100% - 30px))}
+.consent-doc-dialog .legal-page{padding:0;max-width:none}
+.consent-doc-scroll{max-height:55vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:6px 16px!important;margin-top:12px}
+.consent-doc-body{margin-top:12px}
+.consent-doc-meta{font-size:13.5px;color:var(--muted);text-align:right;margin:8px 0 0}
+.consent-doc-dialog .primary{margin-top:16px}
 
 /* 회원가입: 성별 select / 혼인여부 라디오 */
 #signupForm select{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:var(--ink);background:#fff}

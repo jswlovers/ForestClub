@@ -6,6 +6,7 @@ const multer = require('multer');
 const db = require('../db');
 const { requireAuth, requireApproved } = require('../auth');
 const { debitCoins, getBalance, InsufficientCoinsError } = require('../services/coins');
+const { grantRewardShare } = require('../services/reward-share');
 const { notifyBySms } = require('../services/notify');
 const { rateLimit } = require('../rate-limit');
 const { createCallRoom } = require('../services/videocall');
@@ -219,6 +220,10 @@ router.post('/', sendLimiter, requireApproved, (req, res, next) => {
     // 통화 요청은 초당 과금(콜 접속 후 /api/calls/tick)으로 별도 청구되므로 메시지 발송료는 받지 않는다.
     if (kind !== 'call') {
       debitCoins(req.user.id, MESSAGE_COST, 'message_spend', `메시지 발송 (받는 회원: ${recipient.name})`);
+      grantRewardShare({
+        earnerId: recipient.id, spenderId: req.user.id, spentCoins: MESSAGE_COST,
+        type: 'reward_share_message', note: `우수 회원 리워드: 받은 메시지 (보낸 회원: ${req.user.nickname})`,
+      });
     }
 
     if (req.file) {
