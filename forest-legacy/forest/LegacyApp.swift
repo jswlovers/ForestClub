@@ -98,12 +98,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         let tabs = UITabBarController()
         let home = EventsController(home: true)
-        home.tabBarItem = UITabBarItem(title: "홈", image: nil, tag: 0)
+        home.tabBarItem = UITabBarItem(title: "홈", image: MenuIcon.draw(.home), tag: 0)
         let events = EventsController(home: false)
-        events.tabBarItem = UITabBarItem(title: "모임", image: nil, tag: 1)
+        events.tabBarItem = UITabBarItem(title: "모임", image: MenuIcon.draw(.events), tag: 1)
         let account = AccountController()
-        account.tabBarItem = UITabBarItem(title: "마이페이지", image: nil, tag: 2)
-        tabs.viewControllers = [home, events, account].map { UINavigationController(rootViewController: $0) }
+        account.tabBarItem = UITabBarItem(title: "마이페이지", image: MenuIcon.draw(.account), tag: 2)
+        let menu = MenuController()
+        menu.tabBarItem = UITabBarItem(title: "전체 메뉴", image: MenuIcon.draw(.menu), tag: 3)
+        tabs.viewControllers = [home, events, account, menu].map { UINavigationController(rootViewController: $0) }
         tabs.tabBar.tintColor = green
         let window = UIWindow(frame: UIScreen.main.bounds)
         window.tintColor = green
@@ -139,6 +141,7 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = home ? "포레스트클럽" : "함께할 모임"
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "전체 메뉴", style: .plain, target: self, action: #selector(openMenu))
         categories.selectedSegmentIndex = 0
         categories.addTarget(self, action: #selector(reload), for: .valueChanged)
         if !home {
@@ -157,6 +160,7 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
     }
     override func viewWillAppear(_ animated: Bool) { super.viewWillAppear(animated); reload() }
     @objc func reload() { tableView.reloadData() }
+    @objc func openMenu() { navigationController?.pushViewController(MenuController(), animated: true) }
     @objc func refresh() {
         Service.shared.refresh { error in
             self.refreshControl?.endRefreshing()

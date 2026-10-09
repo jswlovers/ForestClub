@@ -29,10 +29,16 @@ struct ContentView: View {
                         }
                     }.padding(20)
                 }.background(Color(.systemGroupedBackground)).navigationTitle("포레스트클럽").navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            NavigationLink { ClubMenu(store: store) } label: { Label("전체 메뉴", systemImage: "line.3.horizontal") }
+                        }
+                    }
                     .refreshable { await store.refresh() }
             }.tabItem { Label("홈", systemImage: "house") }
             EventList(store: store).tabItem { Label("모임", systemImage: "figure.golf") }
             AccountView(store: store).tabItem { Label("마이페이지", systemImage: "person.crop.circle") }
+            NavigationStack { ClubMenu(store: store) }.tabItem { Label("전체 메뉴", systemImage: "line.3.horizontal") }
         }.tint(clubGreen).task { await store.refresh() }
     }
 }
@@ -59,6 +65,10 @@ struct EventList: View {
     @ObservedObject var store: ClubStore
     @State private var category = "all"
     @State private var search = ""
+    init(store: ClubStore, category: String = "all") {
+        self.store = store
+        _category = State(initialValue: category)
+    }
     private var filtered: [ClubEvent] {
         store.events.filter { (category == "all" || $0.type == category) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)) }
     }
@@ -192,3 +202,49 @@ struct AccountView: View {
 }
 
 #Preview { ContentView() }
+
+struct ClubMenu: View {
+    @ObservedObject var store: ClubStore
+    var body: some View {
+        List {
+            Section("모임") {
+                NavigationLink { EventList(store: store, category: "golf") } label: { Label("골프모임", systemImage: "figure.golf") }
+                NavigationLink { EventList(store: store, category: "travel") } label: { Label("여행모임", systemImage: "airplane") }
+            }
+            Section("회원 계정") {
+                NavigationLink { AccountView(store: store) } label: { Label("로그인 · 회원가입 · 서버 설정", systemImage: "person.crop.circle") }
+            }
+            Section {
+                ForEach(["클럽 소개", "멤버십 · 지원하기", "멤버 후기", "내 프로필", "내 지원 현황", "내 신청함", "쪽지함", "코인 충전", "고객센터"], id: \.self) { title in
+                    NavigationLink(title) { WebMenuDestination(title: title, store: store) }
+                }
+            } header: { Text("회원 웹 서비스") } footer: {
+                Text("회원 웹 서비스는 연결된 웹사이트에서 이용합니다. 서버 연결 전에도 메뉴를 확인할 수 있습니다.")
+            }
+        }.navigationTitle("전체 메뉴").navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct WebMenuDestination: View {
+    let title: String
+    @ObservedObject var store: ClubStore
+    private var url: URL? {
+        guard var components = URLComponents(string: store.serverAddress) else { return nil }
+        components.fragment = ["클럽 소개": "about", "멤버십 · 지원하기": "membership", "멤버 후기": "voice"][title]
+        return components.url
+    }
+    var body: some View {
+        Form {
+            Section {
+                Text("\(title)은 웹 서비스에서 이용합니다.")
+                if store.isLive, let url = url {
+                    Link("웹 서비스 열기", destination: url)
+                    Text("회원 메뉴는 웹사이트 로그인 후 선택해주세요.").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("마이페이지에서 서비스 서버를 먼저 연결해주세요.")
+                    NavigationLink("서버 연결 설정") { AccountView(store: store) }
+                }
+            }
+        }.navigationTitle(title)
+    }
+}
