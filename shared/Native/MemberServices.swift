@@ -118,7 +118,7 @@ extension UIViewController {
                 let fields = [("name", "이름"), ("phone", "연락처"), ("email", "이메일"), ("ageGroup", "연령대"), ("region", "지역"), ("job", "직업"), ("golfExperience", "골프 구력"), ("interest", "관심 분야"), ("referrer", "추천인"), ("intro", "자기소개")].map { key, title in
                     FormField(key: key, title: title, value: string(profile, key), required: ["name", "phone", "email"].contains(key), keyboard: key == "email" ? .emailAddress : (key == "phone" ? .phonePad : .default), multiline: key == "intro")
                 }
-                let form = NativeFormController(title: "멤버십 지원서", fields: fields, explanation: "온라인 지원 → 서류 심사 → 멤버 인터뷰 → 승인 및 웰컴 라운딩", submitTitle: "지원", send: { values, done in
+                let form = NativeFormController(title: "멤버십 지원서", fields: fields, explanation: "회원가입 · 지원 → 서류 심사 → 멤버 인터뷰 → 승인, 그리고 첫 인사", submitTitle: "지원", send: { values, done in
                     Service.shared.json(["api", "applications"], body: values) { _, error in done(error) }
                 }, success: { self.navigationController?.popToViewController(self, animated: true); self.notice("멤버십 지원서가 접수되었습니다.") })
                 self.navigationController?.pushViewController(form, animated: true)

@@ -93,7 +93,7 @@ enum ClubTheme {
 
     /// 홈 화면 상단의 진녹색 소개 카드(웹 첫 화면과 같은 문구·분위기).
     static func heroView(width: CGFloat) -> UIView {
-        let container = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 236))
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 262))
         let card = UIView()
         card.backgroundColor = forest
         card.layer.cornerRadius = 22
@@ -101,14 +101,15 @@ enum ClubTheme {
         container.addSubview(card)
 
         let eyebrow = UILabel()
-        eyebrow.attributedText = NSAttributedString(string: "FOREST CLUB", attributes: [.kern: 3, .foregroundColor: gold, .font: UIFont.systemFont(ofSize: 12, weight: .bold)])
+        eyebrow.attributedText = NSAttributedString(string: "FOR REST · 휴식 같은 만남", attributes: [.kern: 2, .foregroundColor: gold, .font: UIFont.systemFont(ofSize: 12, weight: .bold)])
         let headline = UILabel()
-        headline.text = "좋은 사람들과,\n더 넓은 세상으로."
+        headline.text = "For Rest,\nForest."
         headline.numberOfLines = 0
-        headline.font = serif(28)
+        headline.font = serif(34)
         headline.textColor = .white
         let sub = UILabel()
-        sub.text = "골프와 여행, 함께하는 취향"
+        sub.text = "숲에서 쉬듯 편안해지는 사람이 있습니다.\n검증된 회원끼리 천천히 대화하고, 편안하게 만나세요."
+        sub.numberOfLines = 0
         sub.font = UIFont.systemFont(ofSize: 14)
         sub.textColor = goldLight
         let stack = UIStackView(arrangedSubviews: [eyebrow, headline, sub])

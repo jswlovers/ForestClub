@@ -11,3 +11,4 @@
 - 생성한 APK도 빌드 번호와 서명 종류를 포함한 파일명으로 `artifacts/`에 저장하고 Git 추적에 추가한다. 이전 파일은 보존한다.
 - Android 서명 개인 키와 `local.properties`, 빌드 캐시, SDK는 커밋하지 않는다.
 - 기본 운영 서버는 `https://forest.sean2022.one:8888`이며 일반 앱 화면에서 서버 주소 입력을 요구하지 않는다.
+- APK 파일명은 `ForestClub-Android-<서명종류>-build<번호>.apk` 형식을 지킨다. 포트 999 앱 다운로드 페이지(`https://forest.sean2022.one:999`, `D:\github\service-apps\download`)가 `artifacts/`에서 이 패턴의 빌드 번호가 가장 큰 파일을 포레스트클럽 다운로드로 제공하므로, 빌드 후 `artifacts/`에 저장하면 바로 최신본이 내려간다.

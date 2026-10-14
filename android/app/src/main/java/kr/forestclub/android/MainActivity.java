@@ -144,7 +144,7 @@ public final class MainActivity extends Activity {
         history.clear(); activeTab = tab;
         for (int i = 0; i < tabs.getChildCount(); i++) { Button item = (Button) tabs.getChildAt(i); item.setTextColor(i == tab ? GREEN : MUTED); item.setTypeface(i == tab ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT); }
         if (tab == 0) show(new Screen("포레스트클럽", this::home), false);
-        else if (tab == 1) show(new Screen("함께할 모임", this::events), false);
+        else if (tab == 1) show(new Screen("만남 뒤 모임", this::events), false);
         else if (tab == 2) show(new Screen("마이페이지", this::account), false);
         else show(new Screen("전체 메뉴", this::menu), false);
     }
@@ -168,11 +168,16 @@ public final class MainActivity extends Activity {
         // 웹 첫 화면과 같은 진녹색 소개 카드
         LinearLayout hero = new LinearLayout(this); hero.setOrientation(LinearLayout.VERTICAL); hero.setPadding(dp(26), dp(28), dp(26), dp(28));
         GradientDrawable heroBg = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{GREEN, GREEN_DEEP}); heroBg.setCornerRadius(dp(22)); hero.setBackground(heroBg);
-        hero.addView(eyebrow("FOREST CLUB"));
-        TextView headline = text("좋은 사람들과,\n더 넓은 세상으로.", 28, Color.WHITE); headline.setTypeface(SERIF); headline.setLineSpacing(dp(4), 1); headline.setPadding(0, dp(10), 0, dp(10)); hero.addView(headline);
-        hero.addView(text("골프와 여행, 함께하는 취향", 14, GOLD_LIGHT));
+        hero.addView(eyebrow("FOR REST · 휴식 같은 만남"));
+        TextView headline = text("For Rest,\nForest.", 34, Color.WHITE); headline.setTypeface(SERIF); headline.setLineSpacing(dp(4), 1); headline.setPadding(0, dp(10), 0, dp(10)); hero.addView(headline);
+        TextView lead = text("숲에서 쉬듯 편안해지는 사람이 있습니다.\n검증된 회원끼리 천천히 대화하고, 편안하게 만나세요.", 14, GOLD_LIGHT); lead.setLineSpacing(dp(3), 1); hero.addView(lead);
         body.addView(hero);
-        addPrimary("모임 둘러보기", () -> selectTab(1)); section("추천 모임");
+        addPrimary("만남 시작하기", () -> route("쪽지함"));
+        // 웹의 "HOW WE MEET"와 같은 4단계 — 골프는 만남 뒤에 추천하는 순서로 둔다.
+        TextView how = eyebrow("HOW WE MEET"); how.setPadding(0, dp(24), 0, 0); body.addView(how); section("휴식 같은 만남은\n이렇게 이어집니다");
+        String[][] steps = {{"01  프로필과 쪽지", "관심사와 소개글을 보고 마음이 가는 분께 먼저 인사를 건넵니다."}, {"02  목소리, 그리고 얼굴", "대화가 편해지면 보이스톡으로, 더 가까워지면 페이스톡으로 이어갑니다."}, {"03  편안한 첫 만남", "모임에 함께 참석하거나 동행을 신청해 직접 만납니다."}, {"04  그다음, 함께 라운딩", "마음이 통했다면 둘이 함께할 수 있는 소규모 라운딩을 추천해 드립니다."}};
+        for (String[] step : steps) card(body, step[0], step[1], null);
+        TextView after = eyebrow("AFTER WE MEET"); after.setPadding(0, dp(24), 0, 0); body.addView(after); section("마음이 통했다면,\n다음은 함께 라운딩");
         LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); body.addView(list); fillEvents(list, eventData, true);
         if (!api.server().isEmpty()) async(version, () -> api.get("api", "events"), value -> { live = true; eventData = (JSONArray) value; fillEvents(list, eventData, true); }, error -> { live = false; note("서버 연결 실패 · 예시 모임입니다."); });
         else note("예시 모임 · 인터넷 연결을 확인해주세요.");
@@ -224,9 +229,24 @@ public final class MainActivity extends Activity {
     }
     private void openMenu() { show(new Screen("전체 메뉴", this::menu), true); }
     private void menu(int version) {
-        section("모임"); addButton("골프모임", () -> { eventType = "golf"; selectTab(1); }); addButton("여행모임", () -> { eventType = "travel"; selectTab(1); });
-        section("회원 서비스"); for (String item : new String[]{"멤버십 · 지원하기", "내 프로필", "내 지원 현황", "내 신청함", "쪽지함", "코인 충전", "고객센터"}) addButton(item, () -> route(item));
-        section("포레스트클럽"); addButton("클럽 소개", () -> show(new Screen("클럽 소개", v -> { section("함께하는 취향, 깊어지는 인연"); note("소규모 골프 라운딩과 국내외 여행에서 취향을 나누는 프라이빗 멤버십입니다."); note("온라인 지원 → 서류 심사 → 멤버 인터뷰 → 승인 및 웰컴 라운딩"); }), true)); addButton("로그인 · 계정 관리", () -> selectTab(2));
+        section("만남"); for (String item : new String[]{"쪽지함", "내 신청함"}) addButton(item, () -> route(item));
+        section("만남 뒤 모임"); addButton("함께 라운딩", () -> { eventType = "golf"; selectTab(1); }); addButton("함께 떠나는 여행", () -> { eventType = "travel"; selectTab(1); });
+        section("회원 서비스"); for (String item : new String[]{"멤버십 · 지원하기", "내 프로필", "내 지원 현황", "코인 충전", "고객센터"}) addButton(item, () -> route(item));
+        section("포레스트클럽"); addButton("For Rest 소개", this::about); addButton("로그인 · 계정 관리", () -> selectTab(2));
+    }
+    /** 웹 첫 화면의 "FOR REST, FOREST" · "FOR YOU" · 가입 절차와 같은 내용. */
+    private void about() {
+        show(new Screen("For Rest 소개", v -> {
+            body.addView(eyebrow("FOR REST, FOREST")); section("숲에서 쉬듯,\n사람에게서 쉬는 시간");
+            note("For Rest를 줄이면 Forest가 됩니다. 애쓰지 않아도 편안한 사람, 함께 있으면 쉬어지는 만남을 만듭니다.");
+            card(body, "검증된 사람들", "서류 심사와 인터뷰를 거쳐 승인된 회원끼리만 만납니다.", null);
+            card(body, "천천히 알아가는 대화", "쪽지로 인사하고, 편해지면 보이스톡·페이스톡으로 이어갑니다.", null);
+            card(body, "부담 없는 첫 만남", "소규모 모임과 동행 신청으로 자연스럽게 마주합니다.", null);
+            card(body, "철저한 프라이버시", "이름과 생년월일은 다른 회원에게 공개되지 않습니다.", null);
+            TextView forYou = eyebrow("FOR YOU"); forYou.setPadding(0, dp(20), 0, 0); body.addView(forYou); section("이런 분께 권합니다");
+            note("· 하루 끝에, 아무 말 없이도 편안한 사람을 만나고 싶은 분\n· 대화로 천천히 서로를 알아가는 시간이 소중한 분\n· 마음 맞는 사람과 주말 라운딩이나 짧은 여행을 함께하고 싶은 분");
+            section("가입 절차"); note("회원가입 · 지원 → 서류 심사 → 멤버 인터뷰 → 승인, 그리고 첫 인사");
+        }), true);
     }
     private void route(String label) {
         protectedAction(() -> { switch (label) {
@@ -362,7 +382,7 @@ public final class MainActivity extends Activity {
         ArrayList<Field> fields = new ArrayList<>(); String[][] definitions = application ? new String[][]{{"name", "이름"}, {"phone", "연락처"}, {"email", "이메일"}, {"ageGroup", "연령대"}, {"region", "지역"}, {"job", "직업"}, {"golfExperience", "골프 구력"}, {"interest", "관심 분야"}, {"referrer", "추천인"}, {"intro", "자기소개"}} : new String[][]{{"phone", "연락처"}, {"ageGroup", "연령대"}, {"region", "지역"}, {"job", "직업"}, {"golfExperience", "골프 구력"}, {"interest", "관심 분야"}, {"intro", "자기소개"}};
         for (String[] item : definitions) fields.add(new Field(item[0], item[1], value(row, item[0]), application && (item[0].equals("name") || item[0].equals("phone") || item[0].equals("email")), item[0].equals("phone") ? InputType.TYPE_CLASS_PHONE : InputType.TYPE_CLASS_TEXT, item[0].equals("intro"))); return fields;
     }
-    private void application() { async(generation, () -> api.get("api", "auth", "me"), response -> form("멤버십 지원서", profileFields((JSONObject) response, true), "온라인 지원 → 서류 심사 → 멤버 인터뷰 → 승인 및 웰컴", "지원", values -> api.post(values, "api", "applications"), () -> { goBack(); alert("멤버십 지원서가 접수되었습니다."); })); }
+    private void application() { async(generation, () -> api.get("api", "auth", "me"), response -> form("멤버십 지원서", profileFields((JSONObject) response, true), "회원가입 · 지원 → 서류 심사 → 멤버 인터뷰 → 승인, 그리고 첫 인사", "지원", values -> api.post(values, "api", "applications"), () -> { goBack(); alert("멤버십 지원서가 접수되었습니다."); })); }
     private void coins() {
         show(new Screen("코인", version -> {
             section("보유 코인"); TextView balance = text("불러오는 중…", 32, GREEN); balance.setTypeface(SERIF); body.addView(balance); note("쪽지 1건당 500코인 · 1코인 = 1원");

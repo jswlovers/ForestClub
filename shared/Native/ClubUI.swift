@@ -42,7 +42,7 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = home ? "포레스트클럽" : "함께할 모임"
+        title = home ? "포레스트클럽" : "만남 뒤 모임"
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "전체 메뉴", style: .plain, target: self, action: #selector(openMenu))
         categories.selectedSegmentIndex = 0
         categories.addTarget(self, action: #selector(reload), for: .valueChanged)
@@ -75,7 +75,7 @@ final class EventsController: UITableViewController, UISearchResultsUpdating {
     override func numberOfSections(in tableView: UITableView) -> Int { 1 }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { filtered.count }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        let heading = home ? "추천 모임 · " : ""
+        let heading = home ? "마음이 통했다면, 다음은 함께 라운딩 · " : ""
         return heading + (Service.shared.live ? "현재 모집 현황" : "서비스에 연결하지 못했습니다 · 예시 모임")
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
