@@ -18,7 +18,7 @@ iPhone 5s / iOS 12.5.7을 지원하는 UIKit 앱입니다. 최신 iOS 앱과 `sh
 
 ## Windows에서 설치
 
-최신 IPA: `artifacts/ForestClub-iOS12-build8.ipa`. 서명 없는 실제 기기용 arm64 빌드입니다. 이전 IPA도 보존됩니다.
+최신 IPA: `artifacts/ForestClub-iPhoneSE-iOS12-build10.ipa`. 서명 없는 실제 기기용 arm64 빌드입니다. 이전 IPA도 보존됩니다.
 
 1. https://sideloadly.io 에서 Sideloadly와 공식 안내의 Apple 구성요소를 설치합니다.
 2. iPhone을 USB로 연결하고 잠금을 풀어 컴퓨터를 신뢰합니다.

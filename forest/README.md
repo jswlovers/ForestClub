@@ -12,7 +12,7 @@ iOS 17.0 이상용 앱입니다. SwiftUI 앱 진입점에서 UIKit 화면을 표
 
 Debug UI 테스트에서는 앱 실행 인수 `-forest.server http://localhost:18743`으로 로컬 fixture를 사용할 수 있습니다. Release 앱은 운영 서버에 연결합니다.
 
-최신 IPA는 `artifacts/ForestClub-iOS17-build9.ipa`입니다. iOS 17.0 이상(예: iPhone 15 Pro Max iOS 17.1.1)의 실제 기기용 arm64 빌드 9이며 설치 도구에서 서명해야 합니다. iPhone 5s에는 `artifacts/ForestClub-iOS12-build8.ipa`를 사용합니다. 이전 IPA는 보존합니다.
+최신 IPA는 `artifacts/ForestClub-iPhone16Pro-iOS17-build10.ipa`입니다. iOS 17.0 이상(예: iPhone 15 Pro Max iOS 17.1.1)의 실제 기기용 arm64 빌드 10이며 설치 도구에서 서명해야 합니다. iPhone 5s에는 `artifacts/ForestClub-iPhoneSE-iOS12-build10.ipa`를 사용합니다. 이전 IPA는 보존합니다.
 
 직접 Xcode로 기기에 설치하려면 Signing & Capabilities에서 개발 팀과 고유한 Bundle Identifier를 설정합니다. App Store 배포용 아이콘과 서명은 별도 준비가 필요합니다.
 
