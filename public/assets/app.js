@@ -180,8 +180,36 @@ function showSignupStep(n){
   });
   authDialog.scrollTop=0;
 }
+/* ── 취미 ──────────────────────────────────────────────
+   목록은 서버(/api/hobbies)에서 받아 쓴다 — 관리자가 새 취미를 추가하면 화면을 고치지 않아도 바로 나타난다. */
+const MAX_HOBBIES=10;
+let hobbyCatalog=null;
+async function loadHobbyCatalog(){
+  if(!hobbyCatalog){try{hobbyCatalog=await api('/api/hobbies')}catch{hobbyCatalog=[]}}
+  return hobbyCatalog;
+}
+// 분류(문화·예술/스포츠/여가…)별로 칩을 그린다. selected: 미리 골라 둘 취미 id 목록.
+async function renderHobbyPicker(container,selected=[]){
+  const list=await loadHobbyCatalog();
+  if(!list.length){container.innerHTML='<p class="member-hint">취미 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.</p>';return}
+  const chosen=new Set(selected.map(Number));
+  const groups=[...new Set(list.map(h=>h.category))];
+  container.innerHTML=groups.map(g=>`<div class="hobby-group"><span class="hobby-group-name">${esc(g)}</span><div class="hobby-chips">${
+    list.filter(h=>h.category===g).map(h=>`<label class="hobby-chip"><input type="checkbox" value="${h.id}"${chosen.has(h.id)?' checked':''}><span>${esc(h.icon||'')} ${esc(h.name)}</span></label>`).join('')
+  }</div></div>`).join('');
+  container.onchange=e=>{
+    if(e.target.type==='checkbox'&&pickedHobbyIds(container).length>MAX_HOBBIES){e.target.checked=false;showToast(`취미는 최대 ${MAX_HOBBIES}개까지 고를 수 있어요`)}
+  };
+}
+function pickedHobbyIds(container){return [...container.querySelectorAll('input:checked')].map(i=>Number(i.value))}
+function hobbyChipsHtml(hobbies,sharedIds=[]){
+  const shared=new Set(sharedIds);
+  return (hobbies||[]).map(h=>`<span class="hobby-tag${shared.has(h.id)?' shared':''}">${esc(h.icon||'')} ${esc(h.name)}</span>`).join('');
+}
+
 function resetSignup(){
   signupSteps.slice(0,3).forEach(f=>f.reset());
+  renderHobbyPicker(document.querySelector('#signupHobbies'));
   signupIdentity=null;
   signupError.textContent='';signupStep2Error.textContent='';signupGoLogin.classList.add('hidden');
   nicknameOk=false;signupNicknameHint.textContent='';signupNicknameHint.className='';
@@ -305,19 +333,19 @@ signupSteps[2].onsubmit=async e=>{
   const password=document.querySelector('#signupPassword').value;
   const maritalStatus=(document.querySelector('input[name="signupMarital"]:checked')||{}).value||'';
   const golfExperience=document.querySelector('#signupGolf').value;
-  const interest=document.querySelector('#signupInterest').value;
+  const hobbyIds=pickedHobbyIds(document.querySelector('#signupHobbies'));
   const referrer=document.querySelector('#signupReferrer').value.trim();
   const intro=document.querySelector('#signupIntro').value.trim();
 
   if(!nicknameOk){signupError.textContent='닉네임 확인을 완료해주세요';return}
   if(maritalStatus==='married'){signupError.textContent='포레스트클럽은 법률상 배우자가 없는 분만 가입하실 수 있습니다.';return}
   if(!region||!job){signupError.textContent='거주 지역과 직업을 입력해주세요';return}
-  if(!golfExperience||!interest){signupError.textContent='골프 구력과 관심 분야를 선택해주세요';return}
+  if(!hobbyIds.length){signupError.textContent='좋아하는 취미를 하나 이상 골라주세요';return}
   if(!email||password.length<8){signupError.textContent='이메일과 8자 이상 비밀번호를 확인해주세요';return}
 
   try{
     currentUser=await api('/api/auth/signup',{method:'POST',body:{
-      ...signupIdentity,nickname,region,job,email,password,maritalStatus,golfExperience,interest,referrer,intro,
+      ...signupIdentity,nickname,region,job,email,password,maritalStatus,golfExperience,hobbyIds,referrer,intro,
       ageAgreed:agreeAge19.checked,termsAgreed:agreeTerms.checked,privacyAgreed:agreePrivacy.checked,
       marketingAgreed:agreeMarketing.checked,
     }});
@@ -403,6 +431,8 @@ const companionError=document.querySelector('#companionError'),companionTarget=d
 const companionTargetHint=document.querySelector('#companionTargetHint');
 let companionEventName=null;
 let membersCache=[];
+// 회원 목록에서 본 상대 정보(취미 포함). 쪽지 창의 첫 인사 질문 제안에 쓴다.
+const knownMembers=new Map();
 
 document.querySelectorAll('.companion').forEach(b=>b.addEventListener('click',async e=>{
   if(!currentUser){mobileMenu.classList.remove('show');showToast('동행 신청은 로그인 후 이용할 수 있어요');openAuthDialog();return}
@@ -415,21 +445,21 @@ document.querySelectorAll('.companion').forEach(b=>b.addEventListener('click',as
   companionDialog.showModal();
   try{
     membersCache=await api('/api/companions/members');
+    membersCache.forEach(m=>knownMembers.set(m.id,m));
     membersCache.sort((a,b)=>matchScore(b)-matchScore(a));
     if(!membersCache.length){
       companionTarget.innerHTML='<option value="">신청 가능한 회원이 아직 없어요</option>';
     }else{
-      companionTarget.innerHTML=membersCache.map(m=>`<option value="${m.id}">${matchScore(m)>0?'🎯 ':''}${esc(m.nickname)}${m.interest?` · ${esc(m.interest)}`:''}</option>`).join('');
+      companionTarget.innerHTML=membersCache.map(m=>`<option value="${m.id}">${m.sharedCount?`🎯 같은 취미 ${m.sharedCount} · `:''}${esc(m.nickname)}${m.hobbies&&m.hobbies.length?` · ${esc(m.hobbies.slice(0,3).map(h=>h.name).join(', '))}`:''}</option>`).join('');
       updateCompanionHint();
     }
   }catch(err){companionError.textContent=err.message}
 }));
 
-// 내 프로필(관심분야/지역/골프구력/연령대)과 겹치는 항목이 많을수록 추천 우선순위를 높인다.
+// 같은 취미가 가장 중요하고(취미 1개당 3점), 지역·골프구력·연령대가 같으면 조금씩 더한다.
 function matchScore(m){
   if(!currentUser) return 0;
-  let score=0;
-  if(currentUser.interest&&m.interest===currentUser.interest)score+=2;
+  let score=(m.sharedCount||0)*3;
   if(currentUser.region&&m.region===currentUser.region)score+=1;
   if(currentUser.golfExperience&&m.golf_experience===currentUser.golfExperience)score+=1;
   if(currentUser.ageGroup&&m.age_group===currentUser.ageGroup)score+=1;
@@ -440,13 +470,14 @@ companionTarget.addEventListener('change',updateCompanionHint);
 function updateCompanionHint(){
   const m=membersCache.find(x=>String(x.id)===companionTarget.value);
   if(!m){companionTargetHint.innerHTML='';return}
-  const parts=[m.age_group,m.region,m.interest].filter(Boolean);
+  const parts=[m.age?m.age+'세':m.age_group,m.region].filter(Boolean);
   const introText=(parts.length?parts.join(' · ')+' — ':'')+(m.intro||'자기소개가 아직 없어요');
   companionTargetHint.innerHTML=`
     <div class="hint-row">
       ${avatarHtml(m.photo_url,m.nickname,44)}
       <div class="hint-body">
-        ${matchScore(m)>0?'<span class="recommend-tag">🎯 추천</span>':''}${verifyBadgesHtml(m)}
+        ${m.sharedCount?`<span class="recommend-tag">🎯 같은 취미 ${m.sharedCount}개</span>`:''}${verifyBadgesHtml(m)}
+        <div class="hobby-tags">${hobbyChipsHtml(m.hobbies,(m.sharedHobbies||[]).map(h=>h.id))}</div>
         <p>${esc(introText)}</p>
       </div>
     </div>`;
@@ -599,7 +630,7 @@ function openProfile(){
   document.querySelector('#profileRegion').value=currentUser.region||'';
   document.querySelector('#profileJob').value=currentUser.job||'';
   document.querySelector('#profileGolf').value=currentUser.golfExperience||'';
-  document.querySelector('#profileInterest').value=currentUser.interest||'';
+  renderHobbyPicker(document.querySelector('#profileHobbies'),(currentUser.hobbies||[]).map(h=>h.id));
   document.querySelector('#profileIntro').value=currentUser.intro||'';
   document.querySelector('#profileMarketing').checked=!!currentUser.marketingOptIn;
   renderProfilePhotoAndBadges();
@@ -680,10 +711,11 @@ profileForm.onsubmit=async e=>{
     region:document.querySelector('#profileRegion').value.trim(),
     job:document.querySelector('#profileJob').value.trim(),
     golfExperience:document.querySelector('#profileGolf').value,
-    interest:document.querySelector('#profileInterest').value,
+    hobbyIds:pickedHobbyIds(document.querySelector('#profileHobbies')),
     intro:document.querySelector('#profileIntro').value.trim(),
     marketingOptIn:document.querySelector('#profileMarketing').checked,
   };
+  if(!body.hobbyIds.length){profileError.textContent='좋아하는 취미를 하나 이상 골라주세요';return}
   try{
     currentUser=await api('/api/auth/profile',{method:'PATCH',body});
     profileDialog.close();
@@ -928,15 +960,26 @@ document.querySelector('#newChatBtn').onclick=async()=>{
   messagesDialog.close();
   newChatMembers.innerHTML='<p class="request-empty">불러오는 중...</p>';
   newChatDialog.showModal();
+  loadNewChatMembers('');
+};
+
+// 같은 취미를 가진 이성 회원이 먼저 나온다(서버가 정렬). 취미를 고르면 그 취미 회원만 본다.
+async function loadNewChatMembers(hobbyId){
   try{
-    const members=await api('/api/messages/members');
-    newChatMembers.innerHTML=members.length?members.map(m=>`
+    const [members,hobbies]=await Promise.all([api(`/api/messages/members${hobbyId?`?hobby=${hobbyId}`:''}`),loadHobbyCatalog()]);
+    members.forEach(m=>knownMembers.set(m.id,m));
+    const filter=`<label class="hobby-filter">취미별로 보기
+      <select id="newChatHobby"><option value="">전체 (같은 취미 먼저)</option>${hobbies.map(h=>`<option value="${h.id}"${String(h.id)===String(hobbyId)?' selected':''}>${esc(h.icon||'')} ${esc(h.name)}</option>`).join('')}</select></label>`;
+    newChatMembers.innerHTML=filter+(members.length?members.map(m=>`
       <button type="button" class="conversation-card" data-user-id="${m.id}" data-nickname="${esc(m.nickname)}">
         ${avatarHtml(m.photo_url,m.nickname,40)}
-        <div class="conv-main"><h4>${esc(m.nickname)}</h4><p>${esc([m.age?m.age+'세':null,m.region,m.interest].filter(Boolean).join(' · ')||'프로필 미등록')}</p></div>
-      </button>`).join(''):'<p class="request-empty">대화할 수 있는 회원이 없어요</p>';
+        <div class="conv-main"><h4>${esc(m.nickname)}${m.sharedCount?` <span class="recommend-tag">같은 취미 ${m.sharedCount}</span>`:''}</h4>
+          <p>${esc([m.age?m.age+'세':null,m.region].filter(Boolean).join(' · ')||'프로필 미등록')}</p>
+          <div class="hobby-tags">${hobbyChipsHtml(m.hobbies,(m.sharedHobbies||[]).map(h=>h.id))}</div></div>
+      </button>`).join(''):'<p class="request-empty">이 조건의 회원이 아직 없어요</p>');
+    document.querySelector('#newChatHobby').onchange=e=>loadNewChatMembers(e.target.value);
   }catch(err){newChatMembers.innerHTML=`<p class="request-empty">${esc(err.message)}</p>`}
-};
+}
 
 newChatMembers.addEventListener('click',e=>{
   const card=e.target.closest('.conversation-card');
@@ -964,6 +1007,24 @@ async function openChat(userId,name){
   lastThreadMessageId=-1;
   chatDialog.showModal();
   await loadChatThread();
+  showIcebreakers(userId);
+}
+
+// 아직 대화가 없고 같은 취미가 있으면, 그 취미의 "첫 인사 질문"을 눌러서 바로 쓸 수 있게 보여준다.
+async function showIcebreakers(userId){
+  const box=document.querySelector('#chatIcebreakers');
+  box.classList.add('hidden');box.innerHTML='';
+  const member=knownMembers.get(userId);
+  if(!member||lastThreadMessageId>0||!(member.sharedHobbies||[]).length) return;
+  const catalog=await loadHobbyCatalog();
+  const prompts=member.sharedHobbies.map(s=>catalog.find(h=>h.id===s.id)).filter(h=>h&&h.prompt);
+  if(!prompts.length) return;
+  box.innerHTML=`<p>같은 취미로 첫 인사를 건네 보세요</p>${prompts.map(h=>`<button type="button" class="icebreaker" data-text="${esc(h.prompt)}">${esc(h.icon||'')} ${esc(h.prompt)}</button>`).join('')}`;
+  box.classList.remove('hidden');
+  box.onclick=e=>{
+    const b=e.target.closest('.icebreaker');if(!b) return;
+    chatInput.value=b.dataset.text;chatInput.dispatchEvent(new Event('input'));chatInput.focus();
+  };
 }
 
 async function loadChatThread(force){
@@ -972,6 +1033,7 @@ async function loadChatThread(force){
     const newestId=messages.length?messages[messages.length-1].id:0;
     if(!force && newestId===lastThreadMessageId) { refreshUnreadBadge(); return }
     lastThreadMessageId=newestId;
+    if(newestId>0)document.querySelector('#chatIcebreakers').classList.add('hidden');
     chatThread.innerHTML=messages.length?messages.map(m=>{
       const mine=m.sender_id!==currentChatPartnerId;
       return `<div class="chat-bubble ${mine?'mine':'theirs'}">
@@ -1219,3 +1281,27 @@ async function pollNewMessages(){
   }catch{}
 }
 setInterval(pollNewMessages,15000);
+
+/* ── 홈: 취미 라운지 ─────────────────────────────────────
+   취미별로 모여 있는 공간. 누르면 그 취미를 가진 이성 회원 목록이 열린다(로그인 전이면 가입 화면). */
+async function renderHobbyLounge(){
+  const lounge=document.querySelector('#hobbyLounge');
+  if(!lounge) return;
+  const list=await loadHobbyCatalog();
+  if(!list.length){lounge.innerHTML='<p class="sub">취미 목록을 불러오지 못했어요.</p>';return}
+  const groups=[...new Set(list.map(h=>h.category))];
+  lounge.innerHTML=groups.map(g=>`<div class="lounge-group"><h3>${esc(g)}</h3><div class="lounge-grid">${
+    list.filter(h=>h.category===g).map(h=>`<button type="button" class="lounge-card" data-hobby="${h.id}">
+      <span class="lounge-icon">${esc(h.icon||'◎')}</span><strong>${esc(h.name)}</strong>
+      <small>${h.members>0?`${h.members.toLocaleString()}명이 함께해요`:'첫 회원을 기다려요'}</small></button>`).join('')
+  }</div></div>`).join('');
+}
+document.querySelector('#hobbyLounge')?.addEventListener('click',e=>{
+  const card=e.target.closest('.lounge-card');if(!card) return;
+  if(!currentUser){showToast('같은 취미 회원은 가입 후 만날 수 있어요');openAuthDialog();showAuthTab('signup');return}
+  if(currentUser.role!=='admin'&&currentUser.status!=='approved'){showToast('가입 심사 승인 후 회원을 만날 수 있어요');return}
+  newChatMembers.innerHTML='<p class="request-empty">불러오는 중...</p>';
+  newChatDialog.showModal();
+  loadNewChatMembers(card.dataset.hobby);
+});
+renderHobbyLounge();

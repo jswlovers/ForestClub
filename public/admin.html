@@ -45,6 +45,7 @@
         <button class="admin-tab" data-tab="coincharges">코인 충전 승인</button>
         <button class="admin-tab" data-tab="coinissuance">코인 발행 현황</button>
         <button class="admin-tab" data-tab="coinledger">코인 원장</button>
+        <button class="admin-tab" data-tab="hobbies">취미 관리</button>
         <button class="admin-tab" data-tab="settings">운영정책 설정</button>
         <button class="admin-tab" data-tab="notify">안내 메시지 발송</button>
         <button class="admin-tab" data-tab="kakao">카카오톡 발송</button>
@@ -61,6 +62,20 @@
         <div class="panel-head"><h2>모임 참석 확정 관리</h2><span class="panel-count" id="attendancesCount"></span></div>
         <p class="dialog-sub">회원이 참석 확정한 모임의 보류 코인 현황이에요. 실제 참석을 확인하면 '참석 완료'로, 무단 불참이면 '무단불참'으로 처리해 보류를 정산하세요.</p>
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>회원</th><th>모임</th><th>참석 예정일</th><th>보류 코인</th><th>상태</th><th>확정일</th><th>처리</th></tr></thead><tbody id="attendancesBody"></tbody></table></div>
+      </section>
+
+      <section class="admin-panel hidden" id="panel-hobbies">
+        <div class="panel-head"><h2>취미 관리</h2><span class="panel-count" id="hobbiesCount"></span></div>
+        <p class="dialog-sub">회원이 가입·프로필에서 고르는 취미 목록이에요. 새 취미를 추가하면 바로 가입 화면과 홈페이지 "취미 라운지"에 나타나요. 지우는 대신 <b>숨기기</b>를 쓰면 이미 고른 회원의 기록은 남고 새로 고를 수만 없게 돼요. 첫 인사 질문은 같은 취미를 가진 상대와 쪽지를 시작할 때 제안돼요.</p>
+        <form id="hobbyAddForm" class="hobby-add-form">
+          <input id="hobbyAddIcon" placeholder="아이콘 (예: 🎾)" maxlength="8">
+          <input id="hobbyAddName" placeholder="취미 이름" maxlength="20" required>
+          <input id="hobbyAddCategory" placeholder="분류 (예: 스포츠)" maxlength="20" list="hobbyCategories">
+          <input id="hobbyAddPrompt" placeholder="첫 인사 질문 (선택)" maxlength="100">
+          <button class="approve-btn" type="submit">취미 추가</button>
+        </form>
+        <datalist id="hobbyCategories"><option value="문화·예술"><option value="스포츠"><option value="여가"></datalist>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>순서</th><th>아이콘</th><th>이름</th><th>분류</th><th>첫 인사 질문</th><th>회원 수</th><th>상태</th><th>처리</th></tr></thead><tbody id="hobbiesBody"></tbody></table></div>
       </section>
 
       <section class="admin-panel hidden" id="panel-settings">

@@ -68,7 +68,7 @@ document.querySelectorAll('.admin-tab').forEach(t=>t.onclick=()=>{
 });
 
 async function loadAll(){
-  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadAttendances(),loadTickets(),loadCoinCharges(),loadCoinIssuance(),loadCoinLedger(),loadSettings(),loadNotifications(),loadKakao()]);
+  await Promise.all([loadUsers(),loadApplications(),loadIdentityVerifications(),loadCompanions(),loadInterests(),loadAttendances(),loadTickets(),loadCoinCharges(),loadCoinIssuance(),loadCoinLedger(),loadHobbies(),loadSettings(),loadNotifications(),loadKakao()]);
 }
 
 const REPORT_WARN_THRESHOLD=3,REPORT_SUSPEND_THRESHOLD=5;
@@ -95,7 +95,7 @@ function signupStatusPill(u){
 
 // 회원가입이 곧 멤버십 지원이라, 심사에 필요한 지원 내용은 회원 행에서 바로 펼쳐 본다.
 function applicationSummary(u){
-  const rows=[['지역',u.region],['직업',u.job],['골프 구력',u.golf_experience],['관심 분야',u.interest],['추천인',u.referrer],['소개',u.intro]]
+  const rows=[['취미',(u.hobbies||[]).join(', ')],['지역',u.region],['직업',u.job],['골프 구력',u.golf_experience],['관심 분야',u.interest],['추천인',u.referrer],['소개',u.intro]]
     .filter(([,v])=>v);
   if(!rows.length) return '-';
   return `<details class="app-summary"><summary>보기</summary><dl>${rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></details>`;
@@ -605,5 +605,35 @@ async function loadCoinLedger(){
     <td>${fmt(l.created_at)}</td></tr>
   `).join('')||'<tr><td colspan="7">원장 기록이 없어요</td></tr>';
 }
+
+/* ── 취미 관리 ── */
+async function loadHobbies(){
+  const list=await api('/api/admin/hobbies');
+  document.querySelector('#hobbiesCount').textContent=`활성 ${list.filter(h=>h.active).length}개 · 전체 ${list.length}개`;
+  document.querySelector('#hobbiesBody').innerHTML=list.map(h=>`
+    <tr data-id="${h.id}" class="${h.active?'':'row-muted'}">
+      <td><input class="hobby-edit" data-field="sortOrder" type="number" value="${h.sort_order}" style="width:64px"></td>
+      <td><input class="hobby-edit" data-field="icon" value="${esc(h.icon||'')}" maxlength="8" style="width:52px"></td>
+      <td><input class="hobby-edit" data-field="name" value="${esc(h.name)}" maxlength="20" style="width:110px"></td>
+      <td><input class="hobby-edit" data-field="category" value="${esc(h.category)}" maxlength="20" list="hobbyCategories" style="width:100px"></td>
+      <td><input class="hobby-edit" data-field="prompt" value="${esc(h.prompt||'')}" maxlength="100" style="width:260px"></td>
+      <td>${h.members.toLocaleString()}명</td>
+      <td>${h.active?'<span class="status-pill approved">노출</span>':'<span class="status-pill cancelled">숨김</span>'}</td>
+      <td><div class="row-actions"><button class="approve-btn" data-action="save-hobby">저장</button>${h.active?'<button class="reject-btn" data-action="hide-hobby">숨기기</button>':'<button class="approve-btn" data-action="show-hobby">다시 노출</button>'}</div></td>
+    </tr>`).join('')||'<tr><td colspan="8">취미가 없어요</td></tr>';
+}
+document.querySelector('#hobbiesBody').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action]');if(!btn)return;
+  const row=btn.closest('tr');const body={};
+  row.querySelectorAll('.hobby-edit').forEach(i=>body[i.dataset.field]=i.value);
+  if(btn.dataset.action==='hide-hobby')body.active=false;
+  if(btn.dataset.action==='show-hobby')body.active=true;
+  try{await api(`/api/admin/hobbies/${row.dataset.id}`,{method:'PATCH',body});showToast('취미를 저장했어요');loadHobbies()}catch(err){showToast(err.message)}
+});
+document.querySelector('#hobbyAddForm').onsubmit=async e=>{
+  e.preventDefault();
+  const body={icon:document.querySelector('#hobbyAddIcon').value,name:document.querySelector('#hobbyAddName').value,category:document.querySelector('#hobbyAddCategory').value,prompt:document.querySelector('#hobbyAddPrompt').value};
+  try{await api('/api/admin/hobbies',{method:'POST',body});e.target.reset();showToast('새 취미를 추가했어요');loadHobbies()}catch(err){showToast(err.message)}
+};
 
 init();

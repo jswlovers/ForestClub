@@ -76,7 +76,8 @@ const listNotifications = db.prepare(`
 `);
 
 router.get('/users', (req, res) => {
-  res.json(listUsers.all());
+  const hobbyMap = require('../services/hobbies').mapByUser();
+  res.json(listUsers.all().map((u) => ({ ...u, hobbies: (hobbyMap.get(u.id) || []).map((h) => h.name) })));
 });
 
 router.post('/users/:id/suspend', (req, res) => {
@@ -135,6 +136,41 @@ router.post('/users/:id/reject', (req, res) => {
   ).catch((err) => console.error('[notify] member reject sms failed', err));
 
   res.json({ ok: true });
+});
+
+// 취미 관리. 지우지 않고 숨긴다(active=0) — 회원이 이미 고른 기록이 깨지지 않게.
+const hobbySvc = require('../services/hobbies');
+const insertHobby = db.prepare(`INSERT INTO hobbies (slug, name, category, icon, prompt, sort_order) VALUES (?, ?, ?, ?, ?, ?)`);
+const getHobby = db.prepare('SELECT * FROM hobbies WHERE id = ?');
+const findHobbyByName = db.prepare('SELECT id FROM hobbies WHERE name = ? AND id != ?');
+const updateHobby = db.prepare(`UPDATE hobbies SET name = ?, category = ?, icon = ?, prompt = ?, sort_order = ?, active = ? WHERE id = ?`);
+function hobbyFields(body, base = {}) {
+  const name = String(body.name ?? base.name ?? '').trim().slice(0, 20);
+  const category = String(body.category ?? base.category ?? '').trim().slice(0, 20) || '기타';
+  const icon = String(body.icon ?? base.icon ?? '').trim().slice(0, 8) || null;
+  const prompt = String(body.prompt ?? base.prompt ?? '').trim().slice(0, 100) || null;
+  const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : (base.sort_order ?? 500);
+  const active = body.active === undefined ? (base.active ?? 1) : (body.active ? 1 : 0);
+  return { name, category, icon, prompt, sortOrder, active };
+}
+router.get('/hobbies', (req, res) => {
+  res.json(hobbySvc.listAll());
+});
+router.post('/hobbies', (req, res) => {
+  const f = hobbyFields(req.body || {});
+  if (!f.name) return res.status(400).json({ error: '취미 이름을 입력해주세요' });
+  if (findHobbyByName.get(f.name, 0)) return res.status(409).json({ error: '같은 이름의 취미가 이미 있어요' });
+  const info = insertHobby.run(`custom-${Date.now()}`, f.name, f.category, f.icon, f.prompt, f.sortOrder);
+  res.status(201).json(getHobby.get(info.lastInsertRowid));
+});
+router.patch('/hobbies/:id', (req, res) => {
+  const hobby = getHobby.get(Number(req.params.id));
+  if (!hobby) return res.status(404).json({ error: '취미를 찾을 수 없어요' });
+  const f = hobbyFields(req.body || {}, hobby);
+  if (!f.name) return res.status(400).json({ error: '취미 이름을 입력해주세요' });
+  if (findHobbyByName.get(f.name, hobby.id)) return res.status(409).json({ error: '같은 이름의 취미가 이미 있어요' });
+  updateHobby.run(f.name, f.category, f.icon, f.prompt, f.sortOrder, f.active, hobby.id);
+  res.json(getHobby.get(hobby.id));
 });
 
 // 여성 우수 회원 리워드 대상 지정/해제(services/reward-share.js). 여성 회원만 지정할 수 있다.

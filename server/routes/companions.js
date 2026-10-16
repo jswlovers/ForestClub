@@ -1,4 +1,5 @@
 const express = require('express');
+const { decorateMembers } = require('../services/hobbies');
 const db = require('../db');
 const { requireAuth, requireApproved } = require('../auth');
 const { notifyBySms } = require('../services/notify');
@@ -55,7 +56,7 @@ const getRequestById = db.prepare('SELECT * FROM companion_requests WHERE id = ?
 const updateStatus = db.prepare(`UPDATE companion_requests SET status = ? WHERE id = ?`);
 
 router.get('/members', (req, res) => {
-  res.json(listMembers.all(req.user.id));
+  res.json(decorateMembers(req.user, listMembers.all(req.user.id), { hobbyId: req.query.hobby }));
 });
 
 router.post('/', requestLimiter, requireApproved, async (req, res) => {

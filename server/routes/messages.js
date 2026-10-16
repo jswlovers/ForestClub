@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
+const { decorateMembers } = require('../services/hobbies');
 const multer = require('multer');
 const db = require('../db');
 const { requireAuth, requireApproved } = require('../auth');
@@ -46,7 +47,7 @@ const upload = multer({
 const listMembers = db.prepare(`
   SELECT id, nickname,
          CAST((strftime('%Y%m%d', 'now') - strftime('%Y%m%d', birth_date)) / 10000 AS INTEGER) AS age,
-         age_group, region, interest, intro, photo_url
+         gender, age_group, region, interest, intro, photo_url
   FROM users WHERE role != 'admin' AND id != ? AND withdrawn_at IS NULL AND status = 'approved'
   ORDER BY created_at DESC
 `);
@@ -117,7 +118,7 @@ function previewFor(msg) {
 }
 
 router.get('/members', (req, res) => {
-  res.json(listMembers.all(req.user.id));
+  res.json(decorateMembers(req.user, listMembers.all(req.user.id), { hobbyId: req.query.hobby }));
 });
 
 router.get('/unread-count', (req, res) => {

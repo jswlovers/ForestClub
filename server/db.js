@@ -270,6 +270,51 @@ ensureColumn('users', 'referrer', 'TEXT');
 // 여성 우수 회원 리워드 대상으로 관리자가 지정한 시각. NULL이면 대상 아님(services/reward-share.js).
 ensureColumn('users', 'reward_member_at', 'TEXT');
 
+// 취미 — "취미가 같은 이성과의 휴식 같은 만남". 목록은 관리자 페이지에서 추가·수정·숨김할 수 있고,
+// 지우지 않고 active=0으로 숨긴다(회원이 고른 기록이 남아 있어도 깨지지 않게).
+// prompt: 같은 취미를 가진 상대에게 건넬 첫 인사 질문(쪽지 창에서 제안).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS hobbies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    icon TEXT,
+    prompt TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 100,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS user_hobbies (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    hobby_id INTEGER NOT NULL REFERENCES hobbies(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, hobby_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_user_hobbies_hobby ON user_hobbies(hobby_id);
+`);
+// 기본 취미. slug가 같으면 다시 넣지 않으므로, 관리자가 이름을 바꾸거나 숨긴 항목은 재시작해도 되살아나지 않는다.
+const seedHobby = db.prepare(`INSERT OR IGNORE INTO hobbies (slug, name, category, icon, prompt, sort_order) VALUES (?, ?, ?, ?, ?, ?)`);
+[
+  ['reading', '독서', '문화·예술', '📚', '요즘 읽고 있는 책이 있으세요?', 10],
+  ['classical', '클래식', '문화·예술', '🎻', '가장 좋아하는 작곡가나 곡이 궁금해요.', 20],
+  ['jazz', '재즈', '문화·예술', '🎷', '즐겨 듣는 재즈 앨범이나 공연장이 있으세요?', 30],
+  ['musical', '뮤지컬', '문화·예술', '🎭', '최근 본 뮤지컬 중 가장 좋았던 작품은 무엇인가요?', 40],
+  ['opera', '오페라', '문화·예술', '🎼', '가장 기억에 남는 오페라 무대가 있으세요?', 50],
+  ['exhibition', '전시·미술', '문화·예술', '🖼️', '요즘 가 보고 싶은 전시가 있으세요?', 60],
+  ['tennis', '테니스', '스포츠', '🎾', '테니스는 주로 어디서, 얼마나 자주 치세요?', 110],
+  ['billiards', '당구', '스포츠', '🎱', '당구는 4구, 3쿠션 중 어느 쪽을 좋아하세요?', 120],
+  ['golf', '골프', '스포츠', '⛳', '가장 좋아하는 골프장이 어디세요?', 130],
+  ['badminton', '배드민턴', '스포츠', '🏸', '배드민턴은 언제부터 치셨어요?', 140],
+  ['ski', '스키', '스포츠', '⛷️', '이번 시즌 가 보고 싶은 스키장이 있으세요?', 150],
+  ['running', '달리기', '스포츠', '🏃', '즐겨 달리는 코스가 있으세요?', 160],
+  ['hiking', '등산', '스포츠', '⛰️', '가장 좋았던 산과 코스가 궁금해요.', 170],
+  ['travel', '여행', '여가', '✈️', '가장 기억에 남는 여행지는 어디였어요?', 210],
+  ['wine', '와인', '여가', '🍷', '요즘 즐겨 마시는 와인이 있으세요?', 220],
+  ['cooking', '요리', '여가', '🍳', '자신 있는 요리가 하나 있다면요?', 230],
+  ['photography', '사진', '여가', '📷', '최근 찍은 사진 중 마음에 드는 장면이 있으세요?', 240],
+].forEach((h) => seedHobby.run(...h));
+
 // coin_type: 'free'(무료 지급) | 'paid'(구매/충전). 기존에 쌓인 691건은 전부 실제 충전·소비였으므로
 // 'paid' 기본값으로 백필해도 회계상 맞다.
 ensureColumn('coin_ledger', 'coin_type', `TEXT NOT NULL DEFAULT 'paid' CHECK (coin_type IN ('free','paid'))`);

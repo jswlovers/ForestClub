@@ -8,6 +8,7 @@ const { hashPassword, verifyPassword, createSession, destroySession, currentUser
 const { notifyBySms } = require('../services/notify');
 const { rateLimit } = require('../rate-limit');
 const legalVersions = require('../legal-versions');
+const hobbies = require('../services/hobbies');
 
 const router = express.Router();
 
@@ -224,12 +225,20 @@ router.post('/signup', signupLimiter, async (req, res) => {
   if (!job) {
     return res.status(400).json({ error: '직업을 입력해주세요' });
   }
-  if (!GOLF_EXPERIENCES.includes(golfExperience)) {
-    return res.status(400).json({ error: '골프 구력을 선택해주세요' });
+  // 취미 중심으로 바뀌면서 골프 구력은 선택 항목이 됐다(값이 오면 정해진 선택지인지만 확인).
+  if (golfExperience && !GOLF_EXPERIENCES.includes(golfExperience)) {
+    return res.status(400).json({ error: '골프 구력을 확인해주세요' });
   }
-  if (!INTERESTS.includes(interest)) {
-    return res.status(400).json({ error: '관심 분야를 선택해주세요' });
+  if (interest && !INTERESTS.includes(interest)) {
+    return res.status(400).json({ error: '관심 분야를 확인해주세요' });
   }
+  const hobbyChoice = hobbies.parseHobbyIds(req.body.hobbyIds);
+  if (hobbyChoice.error) return res.status(400).json({ error: hobbyChoice.error });
+  if (!hobbyChoice.ids && !interest) {
+    return res.status(400).json({ error: '좋아하는 취미를 하나 이상 골라주세요' });
+  }
+  // 관심 분야(골프/여행/둘 다)는 카카오 발송 대상 필터가 쓰므로, 따로 오지 않으면 고른 취미에서 정한다.
+  const resolvedInterest = interest || hobbies.interestFromHobbies(hobbyChoice.ids);
   if (intro.length > INTRO_MAX) {
     return res.status(400).json({ error: `소개는 ${INTRO_MAX}자 이내로 적어주세요` });
   }
@@ -254,9 +263,10 @@ router.post('/signup', signupLimiter, async (req, res) => {
   try {
     const info = insertUser.run(
       name, email, phone, hashPassword(password), nickname, birthDate, gender, maritalStatus, region, job,
-      golfExperience, interest, referrer || null, intro || null
+      golfExperience || null, resolvedInterest, referrer || null, intro || null
     );
     userId = info.lastInsertRowid;
+    if (hobbyChoice.ids) hobbies.setForUser(userId, hobbyChoice.ids);
     insertConsent.run(userId, 'age19', 1, legalVersions.terms, ip, userAgent, 'signup');
     insertConsent.run(userId, 'terms', 1, legalVersions.terms, ip, userAgent, 'signup');
     insertConsent.run(userId, 'privacy', 1, legalVersions.privacy, ip, userAgent, 'signup');
@@ -304,7 +314,7 @@ router.post('/logout', (req, res) => {
 router.get('/me', (req, res) => {
   const user = currentUser(req);
   if (!user) return res.status(401).json({ error: '로그인이 필요합니다' });
-  res.json(user);
+  res.json({ ...user, hobbies: hobbies.forUser(user.id) });
 });
 
 router.patch('/profile', requireAuth, (req, res) => {
@@ -313,13 +323,19 @@ router.patch('/profile', requireAuth, (req, res) => {
   if (phone && !PHONE_RE.test(phone)) {
     return res.status(400).json({ error: '연락처 형식을 확인해주세요 (예: 010-1234-5678)' });
   }
+  // 취미는 값이 전달됐을 때만 바꾼다(앱의 예전 프로필 화면이 취미를 지우지 않도록).
+  const hobbyChoice = hobbies.parseHobbyIds(body.hobbyIds);
+  if (hobbyChoice.error) return res.status(400).json({ error: hobbyChoice.error });
+  if (hobbyChoice.ids) hobbies.setForUser(req.user.id, hobbyChoice.ids);
+  // 취미를 바꾼 저장이면서 관심 분야가 따로 오지 않았으면 취미에서 정한다(카카오 발송 대상 필터용).
+  const profileInterest = String(body.interest || '').trim() || (hobbyChoice.ids ? hobbies.interestFromHobbies(hobbyChoice.ids) : null);
   updateProfile.run(
     phone || null,
     String(body.ageGroup || '').trim() || null,
     String(body.region || '').trim() || null,
     String(body.job || '').trim() || null,
     String(body.golfExperience || '').trim() || null,
-    String(body.interest || '').trim() || null,
+    profileInterest,
     String(body.intro || '').trim() || null,
     req.user.id
   );
@@ -332,7 +348,7 @@ router.patch('/profile', requireAuth, (req, res) => {
       String(req.ip || '').slice(0, 100), String(req.get('user-agent') || '').slice(0, 300), 'settings'
     );
   }
-  res.json(currentUser(req));
+  res.json({ ...currentUser(req), hobbies: hobbies.forUser(req.user.id) });
 });
 
 // 회원 탈퇴. 즉시 반영되며, 가입만큼 쉬워야 한다는 원칙에 따라 확인 절차 외의 장애물을 두지 않는다.

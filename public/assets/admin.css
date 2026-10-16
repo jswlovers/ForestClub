@@ -65,3 +65,9 @@
 .coin-stat small{font-size:12px;color:var(--muted)}
 .coin-stat.main strong{color:var(--forest)}
 @media(max-width:640px){.coin-stats{grid-template-columns:1fr}}
+
+.hobby-add-form{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.hobby-add-form input{padding:8px 10px;border:1px solid var(--line,#e3ddcd);border-radius:8px;font:inherit}
+.hobby-add-form input:nth-child(4){flex:1;min-width:200px}
+.hobby-edit{padding:6px 8px;border:1px solid var(--line,#e3ddcd);border-radius:6px;font:inherit;font-size:13px}
+.row-muted td{opacity:.55}
