@@ -20,7 +20,7 @@ npm start          # https://localhost:8888
 개발 중에는 `npm run dev`로 실행하면 파일 변경 시 자동 재시작됩니다.
 
 첫 실행 시 SQLite DB가 `data/forest-club.sqlite`에 자동 생성되고, 관리자 계정이 자동으로 만들어집니다.
-기본 관리자 계정은 `admin@forestclub.kr` / `admin1234!` 이며, 운영 배포 전 `.env`에 `ADMIN_EMAIL`, `ADMIN_PASSWORD`를 지정해 바꿔주세요.
+기본 관리자 계정은 `admin@mail.sean2022.one` / `ouU@FuiVWNaEQcpZcU4n` 이며, 운영 배포 전 `.env`에 `ADMIN_EMAIL`, `ADMIN_PASSWORD`를 지정해 바꿔주세요.
 이미 가입한 다른 회원을 관리자로 승격시키려면 `npm run make-admin -- someone@example.com`을 실행하세요.
 
 - 회원 사이트: `/`

@@ -21,8 +21,8 @@ const kakaoAdminRoutes = require('./routes/kakao-admin');
 const legalRoutes = require('./routes/legal');
 const hobbyRoutes = require('./routes/hobbies');
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@forestclub.kr';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234!';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@mail.sean2022.one';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ouU@FuiVWNaEQcpZcU4n';
 
 function ensureAdminSeed() {
   const existing = db.prepare(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`).get();
