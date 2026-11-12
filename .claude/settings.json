@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(node --check public/assets/app.js)",
+      "Bash(node --check public/assets/admin.js)",
+      "Bash(node --check server/routes/tickets.js)",
+      "Bash(curl -sk -c /tmp/admin_cookies.txt -X POST https://localhost:4001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@forestclub.kr\",\"password\":\"admin1234!\"}')",
+      "Bash(curl -sk -b /tmp/admin_cookies.txt -X POST https://localhost:4001/api/admin/users/24/approve)",
+      "Bash(curl -sk -b /tmp/cookies.txt -X POST https://localhost:4001/api/companions -H \"Content-Type: application/json\" -d '{\"targetUserId\":1,\"eventName\":\"웰컴 라운딩\",\"message\":\"hi\"}')",
+      "Bash(curl -sk -b /tmp/admin_cookies.txt https://localhost:4001/api/admin/settings)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 23456 //F)"
+    ]
+  }
+}
